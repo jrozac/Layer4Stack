@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+    <metadata>
+	
+        <id>Layer4Stack</id>
+        <version>$version$</version>
+        <title>Tcp client/server stack wrapper over native TcpClient and TcpListener.</title>
+        <authors>Jernej Rozac</authors>
+		<copyright>Jernej Rozac</copyright>
+        <owners />
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <description>The purpose of this library is to simplify the implementation of various Tcp client/server communication scenarios. The library abstracts the C# native Tcp communication classes and brings an event-driven implementation of Tcp client/server communication, which minimizes code replication.</description>
+		<projectUrl>https://github.com/jrozac/Layer4Stack</projectUrl>
+		<licenseUrl>http://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
+		
+		<dependencies>
+			<dependency id="log4net" version="2.0.8" />
+		</dependencies>
+      
+    </metadata>
+    <files>
+        <file src="bin\Release\Layer4Stack.dll" target="lib\net45\Layer4Stack.dll" />
+        <file src="bin\Release\Layer4Stack.pdb" target="lib\net45\Layer4Stack.pdb" />
+    </files>
+</package>
