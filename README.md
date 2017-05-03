@@ -13,7 +13,7 @@ There are three main externally available brick types in the library architectur
 
 Services are links among data processors and events handlers. Data processors define how raw data are processed, while event handlers define how data items are used. The figure below shows the high-level workflow of data handling valid for both types of services - client and server. 
 
-[sliaka goes here]
+![Simplified architecture overview](docs/img/architecture.png "Simplified architecture overview")
 
 In a two-way communication there are two asynchronous processes - sending data and receiving data. Data items (complete meaningful data - e.g. text messages) are sent within multiple raw data chunks. In case of sending a data item, the service calls the data processor method `FilterSendData` (1), which filters the data item and returns the filtered raw result (2). After that, the service sends that raw result to the network (3) and triggers the event handler method `HandleSentData` (4). In case when receiving data, data items are received in chunks (5). For each chunk the data processor method `ProcessReceivedRawData` is called (6). After that, the service calls the `GetNewData` data processor method to check if a data item was completely received (7). It is the data processor responsibility to extract data items from raw data chunks, glue them together and prepare data items as they were expected to be received. When a data item is completely received, the `GetNewData` methods returns the data item bytes (8). In that case the service calls the event handler method `HandleReceivedData` (9).
 
