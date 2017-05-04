@@ -38,7 +38,7 @@ namespace Layer4Stack.Services
         /// <returns></returns>
         public bool Send(byte[] msg)
         {
-            return _socketClient.Send(msg);
+            return _socketClient != null ? _socketClient.Send(msg) : false;
         }
 
 
@@ -104,8 +104,16 @@ namespace Layer4Stack.Services
         /// </summary>
         public void Disconnect()
         {
-            _cancellationTokenSource.Cancel();
-            _socketClient.Disconnect();
+
+            if (_cancellationTokenSource != null)
+            {
+                _cancellationTokenSource.Cancel();
+            }
+            if(_socketClient != null)
+            {
+                _socketClient.Disconnect();
+            }
+
         }
 
 
