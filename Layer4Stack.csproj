@@ -105,4 +105,8 @@
     <!-- publish Nuget Package to local file share -->
     <Exec WorkingDirectory="$(BuildDir)" Command="nuget add bin\NuGet\$(AssemblyName).$(PublicVersion).nupkg -source C:\Source\Nuget" />
   </Target>
+  <Target Name="PublishNuGet">
+    <!-- publish Nuget Package to local file share -->
+    <Exec WorkingDirectory="$(BuildDir)" Command="nuget push bin\NuGet\$(AssemblyName).$(PublicVersion).nupkg -source https://www.nuget.org/api/v2/package" />
+  </Target>  
 </Project>
