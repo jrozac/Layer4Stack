@@ -1,7 +1,7 @@
 ﻿using Layer4Stack.Models;
-using Layer4Stack.Services;
+using Layer4Stack.Services.Interfaces;
 
-namespace Layer4Stack.Handlers
+namespace Layer4Stack.Handlers.Interfaces
 {
 
     /// <summary>
@@ -15,7 +15,7 @@ namespace Layer4Stack.Handlers
         /// </summary>
         /// <param name="senderObj"></param>
         /// <param name="info"></param>
-        void HandleClientConnected(IServerService senderObj, ClientInfoModel info);
+        void HandleClientConnected(IServerService senderObj, ClientInfo info);
 
 
         /// <summary>
@@ -23,7 +23,7 @@ namespace Layer4Stack.Handlers
         /// </summary>
         /// <param name="senderObj"></param>
         /// <param name="info"></param>
-        void HandleClientDisconnected(IServerService senderObj, ClientInfoModel info);
+        void HandleClientDisconnected(IServerService senderObj, ClientInfo info);
 
 
         /// <summary>
@@ -31,8 +31,7 @@ namespace Layer4Stack.Handlers
         /// </summary>
         /// <param name="senderObj"></param>
         /// <param name="data"></param>
-        void HandleReceivedData(IServerService senderObj, DataModel data);
-
+        void HandleReceivedData(IServerService senderObj, DataContainer data);
 
 
         /// <summary>
@@ -40,14 +39,15 @@ namespace Layer4Stack.Handlers
         /// </summary>
         /// <param name="senderObj"></param>
         /// <param name="data"></param>
-        void HandleSentData(IServerService senderObj, DataModel data);
+        void HandleSentData(IServerService senderObj, DataContainer data);
+
 
         /// <summary>
         /// Server started
         /// </summary>
         /// <param name="senderObj"></param>
         /// <param name="config"></param>
-        void HandleServerStarted(IServerService senderObj, ServerConfigModel config);
+        void HandleServerStarted(IServerService senderObj, ServerConfig config);
 
 
         /// <summary>
@@ -55,8 +55,7 @@ namespace Layer4Stack.Handlers
         /// </summary>
         /// <param name="senderObj"></param>
         /// <param name="config"></param>
-        void HandleServerStartFailure(IServerService senderObj, ServerConfigModel config);
-
+        void HandleServerStartFailure(IServerService senderObj, ServerConfig config);
 
 
         /// <summary>
@@ -64,7 +63,7 @@ namespace Layer4Stack.Handlers
         /// </summary>
         /// <param name="senderObj"></param>
         /// <param name="config"></param>
-        void HandleServerStopped(IServerService senderObj, ServerConfigModel config);
+        void HandleServerStopped(IServerService senderObj, ServerConfig config);
 
     }
 }

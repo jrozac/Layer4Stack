@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Layer4Stack.DataProcessors.Base;
+using Layer4Stack.DataProcessors.Interfaces;
+using System;
 
 namespace Layer4Stack.DataProcessors
 {
@@ -6,14 +8,25 @@ namespace Layer4Stack.DataProcessors
     /// <summary>
     /// Message data processor
     /// </summary>
-    public class MessageDataProcessor : DataProcessorBase, IDataProcessor
+    public class MessageDataProcessor : DataProcessorBase<MessageDataProcessorConfig>, IDataProcessor
     {
+
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="config"></param>
+        public MessageDataProcessor(MessageDataProcessorConfig config) : base(config)
+        {
+
+        }
+
 
         /// <summary>
         /// Currently receiving message 
         /// </summary>
         private byte[] _message = new byte[10000];
-
+        
 
         /// <summary>
         /// Currently receiveing message size
@@ -34,17 +47,6 @@ namespace Layer4Stack.DataProcessors
 
 
         /// <summary>
-        /// Gets local config
-        /// </summary>
-        private MessageDataProcessorConfig _internalConfig {
-            get {
-
-                return (MessageDataProcessorConfig)Config;
-            }
-        }
-
-
-        /// <summary>
         /// Gets message terminator position
         /// </summary>
         /// <param name="haystack"></param>
@@ -52,14 +54,14 @@ namespace Layer4Stack.DataProcessors
         /// <returns></returns>
         private int GetMessageTerminatorPosition(byte[] haystack)
         {
-            var len = _internalConfig.MessageTerminator.Length;
+            var len = Config.MessageTerminator.Length;
             var limit = haystack.Length - len;
             for (var i = 0; i <= limit; i++)
             {
                 var k = 0;
                 for (; k < len; k++)
                 {
-                    if (_internalConfig.MessageTerminator[k] != haystack[i + k]) break;
+                    if (Config.MessageTerminator[k] != haystack[i + k]) break;
                 }
                 if (k == len) return i;
             }
@@ -112,13 +114,13 @@ namespace Layer4Stack.DataProcessors
                 _messageBufferSize = 0;
 
                 // add remaining read to message
-                if (length > terminatorPos + _internalConfig.MessageTerminator.Length)
+                if (length > terminatorPos + Config.MessageTerminator.Length)
                 {
                     Buffer.BlockCopy(
                         buffer,
-                        terminatorPos + _internalConfig.MessageTerminator.Length,
+                        terminatorPos + Config.MessageTerminator.Length,
                         _message,
-                        0, length - terminatorPos - _internalConfig.MessageTerminator.Length);
+                        0, length - terminatorPos - Config.MessageTerminator.Length);
                 }
 
             }
@@ -137,11 +139,12 @@ namespace Layer4Stack.DataProcessors
         public byte[] FilterSendData(byte[] msg)
         {
             // set a message terminator
-            byte[] msgBlcok = new byte[msg.Length + _internalConfig.MessageTerminator.Length];
+            byte[] msgBlcok = new byte[msg.Length + Config.MessageTerminator.Length];
             Buffer.BlockCopy(msg, 0, msgBlcok, 0, msg.Length);
-            Buffer.BlockCopy(_internalConfig.MessageTerminator, 0, msgBlcok, msg.Length, _internalConfig.MessageTerminator.Length);
+            Buffer.BlockCopy(Config.MessageTerminator, 0, msgBlcok, msg.Length, Config.MessageTerminator.Length);
 
             return msgBlcok;
         }
+
     }
 }

@@ -1,4 +1,6 @@
-﻿using Layer4Stack.Models;
+﻿using Layer4Stack.DataProcessors.Interfaces;
+using Layer4Stack.Models;
+using Layer4Stack.Services.Base;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,19 +15,16 @@ namespace Layer4Stack.Services
     /// <summary>
     /// Socket server
     /// </summary>
-    internal class TcpServerSocket : TcpSocketBase
+    internal class TcpServerSocket : TcpSocketBase<ServerConfig>
     {
 
-
         /// <summary>
-        /// Server config
+        /// Constructor
         /// </summary>
-        public ServerConfigModel ServerConfig {
-            get {
-                return (ServerConfigModel) base._config;
-            } set {
-                base._config = value;
-            }
+        /// <param name="dataProcessor"></param>
+        public TcpServerSocket(IDataProcessorProvider dataProcessorProvider, ServerConfig serverConfig) : base(dataProcessorProvider)
+        {
+            Config = serverConfig;
         }
 
 
@@ -38,7 +37,7 @@ namespace Layer4Stack.Services
         /// <summary>
         /// Contains connected clients
         /// </summary>
-        private Dictionary<string, TcpClientModel> _clientRepo = new Dictionary<string, TcpClientModel>();
+        private Dictionary<string, TcpClientInfo> _clientRepo = new Dictionary<string, TcpClientInfo>();
 
 
         /// <summary>
@@ -71,7 +70,7 @@ namespace Layer4Stack.Services
         /// <param name="model"></param>
         protected void RaiseServerStartFailureEvent()
         {
-            _logger.Debug(string.Format("Server failed to start on port {0}.", ServerConfig.Port));
+            _logger.Debug(string.Format("Server failed to start on port {0}.", Config.Port));
             var eh = ServerStartFailureEvent;
             if (eh != null)
             {
@@ -86,7 +85,7 @@ namespace Layer4Stack.Services
         /// <param name="model"></param>
         protected void RaiseServerStartedEvent()
         {
-            _logger.Debug(string.Format("Server started on port {0}.", ServerConfig.Port));
+            _logger.Debug(string.Format("Server started on port {0}.", Config.Port));
             var eh = ServerStartedEvent;
             if (eh != null)
             {
@@ -101,7 +100,7 @@ namespace Layer4Stack.Services
         /// <param name="model"></param>
         protected void RaiseServerStoppedEvent()
         {
-            _logger.Debug(string.Format("Server stopped on port {0}.", ServerConfig.Port));
+            _logger.Debug(string.Format("Server stopped on port {0}.", Config.Port));
             var eh = ServerStoppedEvent;
             if (eh != null)
             {
@@ -154,10 +153,11 @@ namespace Layer4Stack.Services
         /// <returns></returns>
         public bool SendMessageToClient(string clientId, byte[] data)
         {
-            TcpClientModel client = GetClientFromRepository(clientId);
+            TcpClientInfo client = GetClientFromRepository(clientId);
             if(client != null)
             {
-                DataModel message = new DataModel {
+                DataContainer message = new DataContainer
+                {
                     ClientId = clientId,
                     Payload = data,
                     Time = DateTime.Now
@@ -196,7 +196,7 @@ namespace Layer4Stack.Services
         /// <returns></returns>
         public bool DisconnectClient(string clientId)
         {
-            TcpClientModel client = GetClientFromRepository(clientId);
+            TcpClientInfo client = GetClientFromRepository(clientId);
             if(client != null)
             {
                 client.ClientHandlerTokenSource.Cancel();
@@ -219,10 +219,10 @@ namespace Layer4Stack.Services
             try
             {
                 // Init TCP listener.
-                _server = new TcpListener(IPAddress.Parse(ServerConfig.IpAddress ?? "127.0.0.1"), ServerConfig.Port);
+                _server = new TcpListener(IPAddress.Parse(Config.IpAddress ?? "127.0.0.1"), Config.Port);
 
                 // clear clients
-                _clientRepo = new Dictionary<string, TcpClientModel>();
+                _clientRepo = new Dictionary<string, TcpClientInfo>();
 
                 // Start listening for client requests.
                 _server.Start();
@@ -232,7 +232,7 @@ namespace Layer4Stack.Services
 
             } catch(Exception e)
             {
-                _logger.Error(string.Format("Server failed to start on port {0}.", ServerConfig.Port), e);
+                _logger.Error(string.Format("Server failed to start on port {0}.", Config.Port), e);
 
                 // raise server failed to start
                 #pragma warning disable
@@ -263,13 +263,15 @@ namespace Layer4Stack.Services
                     TcpClient client = await _server.AcceptTcpClientAsync();
 
                     // set client info
-                    TcpClientModel clientModel = new TcpClientModel
+                    TcpClientInfo clientModel = new TcpClientInfo
                     {
-                        Id = Guid.NewGuid().ToString(),
-                        IpAddress = ((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString(),
-                        Port = ServerConfig.Port,
                         Time = DateTime.Now,
-                        Client = client
+                        Port = Config.Port,
+                        IpAddress = ((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString(),
+                        Id = Guid.NewGuid().ToString(),
+                        Client = client,
+                        DataProcessor = DataProcessorProvider.New,
+                        ClientHandlerTokenSource = new CancellationTokenSource()
                     };
 
                     #pragma warning disable
@@ -324,14 +326,8 @@ namespace Layer4Stack.Services
         /// <param name="client"></param>
         /// <param name="clientInfo"></param>
         /// <param name="ct"></param>
-        private void HandleClient(TcpClientModel client, CancellationToken ct)
+        private void HandleClient(TcpClientInfo client, CancellationToken ct)
         {
-
-            // set token store 
-            client.ClientHandlerTokenSource = new CancellationTokenSource();
-
-            // init data processor 
-            client.DataProcessor = InitDataProcessor();
   
             // add client to repository
             PutClientToRepository(client);
@@ -350,7 +346,7 @@ namespace Layer4Stack.Services
         /// </summary>
         /// <param name="clientId"></param>
         /// <returns></returns>
-        private TcpClientModel GetClientFromRepository(string clientId)
+        private TcpClientInfo GetClientFromRepository(string clientId)
         {
             return _clientRepo.ContainsKey(clientId) ? _clientRepo[clientId] : null;
         }
@@ -360,7 +356,7 @@ namespace Layer4Stack.Services
         /// Puts client to local repository.
         /// </summary>
         /// <param name="client"></param>
-        private void PutClientToRepository(TcpClientModel client)
+        private void PutClientToRepository(TcpClientInfo client)
         {
             if (_clientRepo != null && !_clientRepo.ContainsKey(client.Id))
             {

@@ -9,9 +9,10 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Layer4Stack</RootNamespace>
     <AssemblyName>Layer4Stack</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -50,36 +51,41 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DataProcessors\DataProcessorBase.cs" />
-    <Compile Include="DataProcessors\DataProcessorConfigBase.cs" />
-    <Compile Include="DataProcessors\DataProcessorTypeAttribute.cs" />
-    <Compile Include="DataProcessors\IDataProcessor.cs" />
-    <Compile Include="DataProcessors\IDataProcessorConfig.cs" />
+    <Compile Include="Api\ClientApi.cs" />
+    <Compile Include="Api\IClientApi.cs" />
+    <Compile Include="Api\IServerApi.cs" />
+    <Compile Include="Api\ServerApi.cs" />
+    <Compile Include="DataProcessors\Base\DataProcessorBase.cs" />
+    <Compile Include="DataProcessors\Base\DataProcessorConfigBase.cs" />
+    <Compile Include="DataProcessors\Base\DataProcessorProviderBase.cs" />
+    <Compile Include="DataProcessors\Interfaces\IDataProcessor.cs" />
+    <Compile Include="DataProcessors\Interfaces\IDataProcessorProvider.cs" />
     <Compile Include="DataProcessors\MessageDataProcessor.cs" />
     <Compile Include="DataProcessors\MessageDataProcessorConfig.cs" />
-    <Compile Include="Models\TcpClientModel.cs" />
-    <Compile Include="Services\IClientService.cs" />
-    <Compile Include="Services\IServerService.cs" />
-    <Compile Include="Services\IServiceBase.cs" />
+    <Compile Include="DataProcessors\MessageDataProcessorProvider.cs" />
+    <Compile Include="Services\TcpClientInfo.cs" />
+    <Compile Include="Services\Interfaces\IClientService.cs" />
+    <Compile Include="Services\Interfaces\IServerService.cs" />
+    <Compile Include="Services\Interfaces\IServiceBase.cs" />
     <Compile Include="Services\TcpClientSocket.cs" />
     <Compile Include="Services\TcpClientService.cs" />
-    <Compile Include="Handlers\IClientEventHandler.cs" />
-    <Compile Include="Handlers\IServerEventHandler.cs" />
-    <Compile Include="Models\ClientConfigModel.cs" />
-    <Compile Include="Models\ClientInfoModel.cs" />
-    <Compile Include="Handlers\IEventHandlerBase.cs" />
-    <Compile Include="Models\ConfigBaseModel.cs" />
-    <Compile Include="Models\DataModel.cs" />
-    <Compile Include="Models\ServerConfigModel.cs" />
+    <Compile Include="Handlers\Interfaces\IClientEventHandler.cs" />
+    <Compile Include="Handlers\Interfaces\IServerEventHandler.cs" />
+    <Compile Include="Models\ClientConfig.cs" />
+    <Compile Include="Models\ClientInfo.cs" />
+    <Compile Include="Models\ConfigBase.cs" />
+    <Compile Include="Models\DataContainer.cs" />
+    <Compile Include="Models\ServerConfig.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\TcpServerSocket.cs" />
     <Compile Include="Services\TcpServerService.cs" />
-    <Compile Include="Services\TcpSocketBase.cs" />
-    <Compile Include="Services\TcpServiceBase.cs" />
+    <Compile Include="Services\Base\TcpSocketBase.cs" />
+    <Compile Include="Services\Base\TcpServiceBase.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="AfterBuild">
     <!-- Load up the information from the assembly -->
@@ -108,5 +114,5 @@
   <Target Name="PublishNuGet">
     <!-- publish Nuget Package to local file share -->
     <Exec WorkingDirectory="$(BuildDir)" Command="nuget push bin\NuGet\$(AssemblyName).$(PublicVersion).nupkg -source https://www.nuget.org/api/v2/package" />
-  </Target>  
+  </Target>
 </Project>

@@ -6,7 +6,7 @@ namespace Layer4Stack.Models
     /// <summary>
     /// Defines client information
     /// </summary>
-    public class ClientInfoModel
+    public class ClientInfo
     {
         /// <summary>
         /// Client id 

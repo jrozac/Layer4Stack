@@ -1,6 +1,6 @@
 # C# Stack 4 Tcp Client and Server
 
-Framework 4.5.2 is required to use the solution present in this repository. However also framework 4.0 should work.
+Framework 4.5 is required to use the solution present in this repository. However also framework 4.0 should work.
 
 ## Architecture
 

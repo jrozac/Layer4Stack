@@ -1,11 +1,4 @@
-﻿using Layer4Stack.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Layer4Stack.Services
+﻿namespace Layer4Stack.Services.Interfaces
 {
 
     /// <summary>
@@ -57,12 +50,6 @@ namespace Layer4Stack.Services
         /// <param name="data"></param>
         /// <returns></returns>
         int SendToAll(byte[] data);
-
-
-        /// <summary>
-        /// Config
-        /// </summary>
-        ServerConfigModel ServerConfig { get; set; }
 
     }
 }

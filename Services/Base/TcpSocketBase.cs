@@ -1,5 +1,6 @@
-﻿using Layer4Stack.DataProcessors;
+﻿using Layer4Stack.DataProcessors.Interfaces;
 using Layer4Stack.Models;
+using Layer4Stack.Models.Base;
 using log4net;
 using System;
 using System.IO;
@@ -7,62 +8,72 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Layer4Stack.Services
+namespace Layer4Stack.Services.Base
 {
 
     /// <summary>
     /// Socket basics. Used by server and client.
     /// </summary>
-    internal abstract class TcpSocketBase
+    internal abstract class TcpSocketBase<TConfig>
+        where TConfig : ConfigBase
     {
 
         /// <summary>
         /// logger
         /// </summary>
-        protected static ILog _logger = LogManager.GetLogger(typeof(TcpSocketBase));
+        protected static ILog _logger = LogManager.GetLogger(typeof(TcpSocketBase<TConfig>));
 
 
         /// <summary>
-        /// Config base model
+        /// Default constructor
         /// </summary>
-        protected ConfigBaseModel _config { get; set; }
+        /// <param name="dataProcessor"></param>
+        protected TcpSocketBase(IDataProcessorProvider dataProcessorProvider)
+        {
+            DataProcessorProvider = dataProcessorProvider;
+        }
 
 
         /// <summary>
-        /// Data Processor config
+        /// Data processor provider
         /// </summary>
-        public IDataProcessorConfig DataProcessorConfig { get; set; }
+        protected IDataProcessorProvider DataProcessorProvider { get; set; }
 
+
+        /// <summary>
+        /// Config 
+        /// </summary>
+        protected TConfig Config { get; set; }
 
         /// <summary>
         /// Message received event.
         /// </summary>
-        public event EventHandler<DataModel> MsgReceivedEvent;
+        public event EventHandler<DataContainer> MsgReceivedEvent;
 
 
         /// <summary>
         /// Message sent event.
         /// </summary>
-        public event EventHandler<DataModel> MsgSentEvent;
+        public event EventHandler<DataContainer> MsgSentEvent;
 
 
         /// <summary>
         /// Client connected event
         /// </summary>
-        public event EventHandler<ClientInfoModel> ClientConnectedEvent;
+        public event EventHandler<ClientInfo> ClientConnectedEvent;
 
 
         /// <summary>
         /// Client disconnected event
         /// </summary>
-        public event EventHandler<ClientInfoModel> ClientDisconnectedEvent;
+        public event EventHandler<ClientInfo> ClientDisconnectedEvent;
 
 
         /// <summary>
         /// Raises message received event
         /// </summary>
         /// <param name="model"></param>
-        protected void RaiseMsgReceivedEvent(DataModel model)
+        protected void RaiseMsgReceivedEvent(DataContainer model)
         {
             _logger.Debug(string.Format("Message of lenght {0} received.", model.Payload.Length));
             var eh = MsgReceivedEvent;
@@ -77,7 +88,7 @@ namespace Layer4Stack.Services
         /// Raises message received event
         /// </summary>
         /// <param name="model"></param>
-        protected void RaiseMsgSentEvent(DataModel model)
+        protected void RaiseMsgSentEvent(DataContainer model)
         {
             _logger.Debug(string.Format("Message of lenght {0} sent.", model.Payload.Length));
             var eh = MsgSentEvent;
@@ -92,7 +103,7 @@ namespace Layer4Stack.Services
         /// Raises client disconnected event
         /// </summary>
         /// <param name="model"></param>
-        protected void RaiseClientDisconnectedEvent(ClientInfoModel model)
+        protected void RaiseClientDisconnectedEvent(ClientInfo model)
         {
             _logger.Info(string.Format("Client {0} disconnected.", model.Id));
             var eh = ClientDisconnectedEvent;
@@ -107,7 +118,7 @@ namespace Layer4Stack.Services
         /// Raises client connected event
         /// </summary>
         /// <param name="model"></param>
-        protected void RaiseClientConnectedEvent(ClientInfoModel model)
+        protected void RaiseClientConnectedEvent(ClientInfo model)
         {
             _logger.Info(string.Format("Client {0} connected.", model.Id));
             var eh = ClientConnectedEvent;
@@ -124,7 +135,7 @@ namespace Layer4Stack.Services
         /// <param name="client"></param>
         /// <param name="message"></param>
         /// <returns></returns>
-        protected bool SendMessage(TcpClientModel client, DataModel message)
+        protected bool SendMessage(TcpClientInfo client, DataContainer message)
         {
 
             byte[] msg = client.DataProcessor.FilterSendData(message.Payload);
@@ -169,10 +180,10 @@ namespace Layer4Stack.Services
         /// <param name="client"></param>
         /// <param name="clientInfo"></param>
         /// <param name="ct"></param>
-        protected void ReadData(TcpClientModel client, CancellationToken[] ct)
+        protected void ReadData(TcpClientInfo client, CancellationToken[] ct)
         {
             // get buffer size 
-            int bufferSize = client.DataProcessor.Config.BufferSize;
+            int bufferSize = Config.SocketBufferSize;
 
             // Buffer for reading data
             byte[] buffer = new byte[bufferSize];
@@ -263,28 +274,11 @@ namespace Layer4Stack.Services
         {
 
             //  create message model 
-            DataModel model = new DataModel { ClientId = clientId, Payload = msg, Time = DateTime.Now };
+            DataContainer model = new DataContainer { ClientId = clientId, Payload = msg, Time = DateTime.Now };
 
             // trigger event
             RaiseMsgReceivedEvent(model);
 
-        }
-
-
-        /// <summary>
-        /// Inits data processor
-        /// </summary>
-        /// <returns></returns>
-        protected IDataProcessor InitDataProcessor()
-        {
-            // create new instance 
-            object proc = Activator.CreateInstance(DataProcessorConfig.ProcessorType);
-        
-            // set config 
-            ((IDataProcessor)proc).Config = DataProcessorConfig;
-
-            // return 
-            return (IDataProcessor)proc;
         }
 
 

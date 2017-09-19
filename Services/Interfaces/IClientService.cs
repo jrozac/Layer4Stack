@@ -1,7 +1,4 @@
-﻿using Layer4Stack.DataProcessors;
-using Layer4Stack.Models;
-
-namespace Layer4Stack.Services
+﻿namespace Layer4Stack.Services.Interfaces
 {
 
     /// <summary>
@@ -9,18 +6,6 @@ namespace Layer4Stack.Services
     /// </summary>
     public interface IClientService
     {
-
-        /// <summary>
-        /// Data processor config
-        /// </summary>
-        IDataProcessorConfig DataProcessorConfig { get; set; }
-
-
-        /// <summary>
-        /// Client config 
-        /// </summary>
-        ClientConfigModel ClientConfig { get; set; }
-
 
         /// <summary>
         /// Connect to server

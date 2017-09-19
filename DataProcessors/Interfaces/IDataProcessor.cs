@@ -1,4 +1,4 @@
-﻿namespace Layer4Stack.DataProcessors
+﻿namespace Layer4Stack.DataProcessors.Interfaces
 {
 
     /// <summary>
@@ -6,12 +6,6 @@
     /// </summary>
     public interface IDataProcessor
     {
-
-        /// <summary>
-        /// Data processor config
-        /// </summary>
-        IDataProcessorConfig Config { get; set; }
-
 
         /// <summary>
         /// Gets last received data time.
@@ -34,6 +28,7 @@
         /// <param name="msg"></param>
         /// <returns></returns>
         byte[] FilterSendData(byte[] msg);
+
 
     }
 }

@@ -1,4 +1,6 @@
-﻿using Layer4Stack.Models;
+﻿using Layer4Stack.DataProcessors.Interfaces;
+using Layer4Stack.Models;
+using Layer4Stack.Services.Base;
 using System;
 using System.Net.Sockets;
 using System.Threading;
@@ -10,42 +12,35 @@ namespace Layer4Stack.Services
     /// <summary>
     /// Tcp socket client
     /// </summary>
-    internal class TcpClientSocket : TcpSocketBase
+    internal class TcpClientSocket : TcpSocketBase<ClientConfig>
     {
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="dataProcessor"></param>
+        public TcpClientSocket(IDataProcessorProvider dataProcessorProvider, ClientConfig clientConfig) : base(dataProcessorProvider)
+        {
+            Config = clientConfig;
+        }
 
         /// <summary>
         /// Client
         /// </summary>
-        private TcpClientModel _client;
-
-
-        /// <summary>
-        /// Client config
-        /// </summary>
-        public ClientConfigModel ClientConfig
-        {
-            get
-            {
-                return (ClientConfigModel)base._config;
-            }
-            set
-            {
-                base._config = value;
-            }
-        }
+        private TcpClientInfo _client;
 
 
         /// <summary>
         /// Fired when client fails to connect to server
         /// </summary>
-        public event EventHandler<ClientInfoModel> ClientConnectionFailureEvent;
+        public event EventHandler<ClientInfo> ClientConnectionFailureEvent;
 
 
         /// <summary>
         /// Raises client connection failure event
         /// </summary>
         /// <param name="model"></param>
-        protected void RaiseClientConnectionFailureEvent(ClientInfoModel model)
+        protected void RaiseClientConnectionFailureEvent(ClientInfo model)
         {
             _logger.Debug(string.Format("Failed to connect to {0} on port {1}.", model.IpAddress, model.Port));
             var eh = ClientConnectionFailureEvent;
@@ -78,19 +73,20 @@ namespace Layer4Stack.Services
             TcpClient client = new TcpClient();
 
             // init model info
-            TcpClientModel clientInfo = new TcpClientModel
+            TcpClientInfo clientInfo = new TcpClientInfo
             {
                 Time = DateTime.Now,
-                Port = ClientConfig.Port,
-                IpAddress = ClientConfig.IpAddress,
+                Port = Config.Port,
+                IpAddress = Config.IpAddress,
                 Id = Guid.NewGuid().ToString(),
-                Client = client
+                Client = client,
+                DataProcessor = DataProcessorProvider.New
             };
 
 
             try
             {
-                await client.ConnectAsync(ClientConfig.IpAddress, ClientConfig.Port);
+                await client.ConnectAsync(Config.IpAddress, Config.Port);
             } catch(Exception e)
             {
                 // client connected failed 
@@ -125,11 +121,8 @@ namespace Layer4Stack.Services
         /// </summary>
         /// <param name="client"></param>
         /// <param name="ct"></param>
-        private void HandleClient(TcpClientModel client, CancellationToken ct)
+        private void HandleClient(TcpClientInfo client, CancellationToken ct)
         {
-
-            // init data processor
-            client.DataProcessor = InitDataProcessor();
 
             // add client to repository
             _client = client;
@@ -169,12 +162,15 @@ namespace Layer4Stack.Services
                 return false;
             }
 
-            DataModel model = new DataModel
+            // create model to send 
+            DataContainer model = new DataContainer
             {
                 ClientId = _client.Id,
                 Payload = message,
                 Time = DateTime.Now
             };
+
+            // send
             return SendMessage(_client, model);
         }
 

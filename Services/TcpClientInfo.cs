@@ -1,14 +1,15 @@
-﻿using Layer4Stack.DataProcessors;
+﻿using Layer4Stack.DataProcessors.Interfaces;
+using Layer4Stack.Models;
 using System.Net.Sockets;
 using System.Threading;
 
-namespace Layer4Stack.Models
+namespace Layer4Stack.Services
 {
 
     /// <summary>
     /// Model used to store data of a client connected to tcp server. 
     /// </summary>
-    public class TcpClientModel : ClientInfoModel
+    internal class TcpClientInfo : ClientInfo
     {
 
 

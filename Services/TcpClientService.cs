@@ -1,5 +1,8 @@
-﻿using Layer4Stack.Handlers;
+﻿using Layer4Stack.DataProcessors.Interfaces;
+using Layer4Stack.Handlers.Interfaces;
 using Layer4Stack.Models;
+using Layer4Stack.Services.Base;
+using Layer4Stack.Services.Interfaces;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,6 +15,16 @@ namespace Layer4Stack.Services
     public class TcpClientService : TcpServiceBase, IClientService
     {
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="dataProcessor"></param>
+        public TcpClientService(IDataProcessorProvider dataProcessorProvider, IClientEventHandler eventHandler, ClientConfig clientConfig) : base(dataProcessorProvider)
+        {
+            ClientConfig = clientConfig;
+            EventHandler = eventHandler;
+        }
+
 
         /// <summary>
         /// Socket client
@@ -22,13 +35,13 @@ namespace Layer4Stack.Services
         /// <summary>
         /// Client config
         /// </summary>
-        public ClientConfigModel ClientConfig { get; set; }
+        protected ClientConfig ClientConfig { get; set; }
 
 
         /// <summary>
         /// Message handler
         /// </summary>
-        public IClientEventHandler EventHandler { get; set; }
+        protected IClientEventHandler EventHandler { get; set; }
 
 
         /// <summary>
@@ -49,13 +62,12 @@ namespace Layer4Stack.Services
         {
 
             // set cancellation token store
-            _cancellationTokenSource = new CancellationTokenSource();
+            CancellationTokenSource = new CancellationTokenSource();
 
             // setup socket server
-            _socketClient = new TcpClientSocket {
-                ClientConfig = ClientConfig,
-                DataProcessorConfig = DataProcessorConfig
-            };
+            _socketClient = new TcpClientSocket(DataProcessorProvider, ClientConfig);
+
+            // bind event handling 
             if(EventHandler != null) { 
 
                 // client connected
@@ -92,7 +104,7 @@ namespace Layer4Stack.Services
             // connect
             #pragma warning disable
             Task.Run(() => {
-                _socketClient.Connect(_cancellationTokenSource.Token);
+                _socketClient.Connect(CancellationTokenSource.Token);
             });
             #pragma warning restore 
 
@@ -105,9 +117,9 @@ namespace Layer4Stack.Services
         public void Disconnect()
         {
 
-            if (_cancellationTokenSource != null)
+            if (CancellationTokenSource != null)
             {
-                _cancellationTokenSource.Cancel();
+                CancellationTokenSource.Cancel();
             }
             if(_socketClient != null)
             {

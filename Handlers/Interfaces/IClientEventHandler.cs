@@ -1,7 +1,7 @@
 ﻿using Layer4Stack.Models;
-using Layer4Stack.Services;
+using Layer4Stack.Services.Interfaces;
 
-namespace Layer4Stack.Handlers
+namespace Layer4Stack.Handlers.Interfaces
 {
 
     /// <summary>
@@ -15,7 +15,7 @@ namespace Layer4Stack.Handlers
         /// </summary>
         /// <param name="senderObj"></param>
         /// <param name="info"></param>
-        void HandleClientConnected(IClientService senderObj, ClientInfoModel info);
+        void HandleClientConnected(IClientService senderObj, ClientInfo info);
 
 
         /// <summary>
@@ -23,7 +23,7 @@ namespace Layer4Stack.Handlers
         /// </summary>
         /// <param name="senderObj"></param>
         /// <param name="info"></param>
-        void HandleClientConnectionFailure(IClientService senderObj, ClientInfoModel info);
+        void HandleClientConnectionFailure(IClientService senderObj, ClientInfo info);
 
 
         /// <summary>
@@ -31,7 +31,7 @@ namespace Layer4Stack.Handlers
         /// </summary>
         /// <param name="senderObj"></param>
         /// <param name="info"></param>
-        void HandleClientDisconnected(IClientService senderObj, ClientInfoModel info);
+        void HandleClientDisconnected(IClientService senderObj, ClientInfo info);
 
 
         /// <summary>
@@ -39,7 +39,7 @@ namespace Layer4Stack.Handlers
         /// </summary>
         /// <param name="senderObj"></param>
         /// <param name="data"></param>
-        void HandleReceivedData(IClientService senderObj, DataModel data);
+        void HandleReceivedData(IClientService senderObj, DataContainer data);
 
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace Layer4Stack.Handlers
         /// </summary>
         /// <param name="senderObj"></param>
         /// <param name="data"></param>
-        void HandleSentData(IClientService senderObj, DataModel data);
+        void HandleSentData(IClientService senderObj, DataContainer data);
 
 
     }

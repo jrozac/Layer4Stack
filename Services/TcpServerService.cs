@@ -1,5 +1,8 @@
-﻿using Layer4Stack.Handlers;
+﻿using Layer4Stack.DataProcessors.Interfaces;
+using Layer4Stack.Handlers.Interfaces;
 using Layer4Stack.Models;
+using Layer4Stack.Services.Base;
+using Layer4Stack.Services.Interfaces;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,6 +16,16 @@ namespace Layer4Stack.Services
     {
 
         /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="dataProcessor"></param>
+        public TcpServerService(IDataProcessorProvider dataProcessorProvider, IServerEventHandler eventHandler, ServerConfig serverConfig) : base(dataProcessorProvider)
+        {
+            ServerConfig = serverConfig;
+            EventHandler = eventHandler;
+        }
+
+        /// <summary>
         /// Socket server
         /// </summary>
         private TcpServerSocket _socketServer;
@@ -21,13 +34,13 @@ namespace Layer4Stack.Services
         /// <summary>
         /// Event handler
         /// </summary>
-        public IServerEventHandler EventHandler { get; set; }
+        protected IServerEventHandler EventHandler { get; set; }
 
 
         /// <summary>
         /// Server config 
         /// </summary>
-        public ServerConfigModel ServerConfig { get; set; }
+        protected ServerConfig ServerConfig { get; set; }
 
         
         /// <summary>
@@ -86,14 +99,10 @@ namespace Layer4Stack.Services
             if(_socketServer == null || !_socketServer.Started)
             {
                 // set cancellation token source
-                _cancellationTokenSource = new CancellationTokenSource();
+                CancellationTokenSource = new CancellationTokenSource();
 
                 // init socket
-                _socketServer = new TcpServerSocket
-                {
-                    DataProcessorConfig = DataProcessorConfig,
-                    ServerConfig = ServerConfig
-                };
+                _socketServer = new TcpServerSocket(DataProcessorProvider, ServerConfig);
 
 
                 // bind events
@@ -146,7 +155,7 @@ namespace Layer4Stack.Services
                 #pragma warning disable
                 // start on socket
                 Task.Run(() => {
-                    _socketServer.ServerStart(_cancellationTokenSource);
+                    _socketServer.ServerStart(CancellationTokenSource);
                 });
                 #pragma warning restore
 

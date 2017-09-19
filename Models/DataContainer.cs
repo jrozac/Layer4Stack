@@ -6,7 +6,7 @@ namespace Layer4Stack.Models
     /// <summary>
     /// Received message model
     /// </summary>
-    public class DataModel
+    public class DataContainer
     {
         
         /// <summary>
