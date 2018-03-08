@@ -1,14 +1,15 @@
-﻿using Layer4Stack.DataProcessors.Interfaces;
+﻿using Layer4Stack.DataProcessors.Base;
+using Layer4Stack.DataProcessors.Interfaces;
 using System;
 
-namespace Layer4Stack.DataProcessors.Base.Base
+namespace Layer4Stack.DataProcessors
 {
     /// <summary>
     /// Data processor provider base 
     /// </summary>
     /// <typeparam name="TDataProcessor"></typeparam>
     /// <typeparam name="TDataProcessorConfig"></typeparam>
-    public abstract class DataProcessorProviderBase<TDataProcessor,TDataProcessorConfig> 
+    public sealed class DataProcessorProvider<TDataProcessor,TDataProcessorConfig> : IDataProcessorProvider
         where TDataProcessor : IDataProcessor
         where TDataProcessorConfig : DataProcessorConfigBase
     {
@@ -17,7 +18,7 @@ namespace Layer4Stack.DataProcessors.Base.Base
         /// Constructor
         /// </summary>
         /// <param name="config"></param>
-        protected DataProcessorProviderBase(TDataProcessorConfig config)
+        public DataProcessorProvider(TDataProcessorConfig config)
         {
             Config = config;
         }

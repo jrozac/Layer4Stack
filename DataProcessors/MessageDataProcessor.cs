@@ -1,6 +1,8 @@
 ﻿using Layer4Stack.DataProcessors.Base;
 using Layer4Stack.DataProcessors.Interfaces;
 using System;
+using System.Collections.Concurrent;
+using log4net;
 
 namespace Layer4Stack.DataProcessors
 {
@@ -18,54 +20,155 @@ namespace Layer4Stack.DataProcessors
         /// <param name="config"></param>
         public MessageDataProcessor(MessageDataProcessorConfig config) : base(config)
         {
-
+            ClearBuffer();
         }
+
+
+        /// <summary>
+        /// Logger 
+        /// </summary>
+        private static readonly ILog _logger = LogManager.GetLogger(typeof(MessageDataProcessor));
 
 
         /// <summary>
         /// Currently receiving message 
         /// </summary>
-        private byte[] _message = new byte[10000];
-        
+        private byte[] _message;
+
+
+        /// <summary>
+        /// Currently receiving message header
+        /// </summary>
+        private byte[] _header;
+
 
         /// <summary>
         /// Currently receiveing message size
         /// </summary>
-        private int _messageBufferSize = 0;
+        private int _messageBufferSize;
 
 
         /// <summary>
-        /// Last Message size
+        /// Length of received header 
         /// </summary>
-        private int _lastMessageSize = 0;
+        private int _headerBufferSize;
 
 
         /// <summary>
-        /// Last completely received message 
+        /// Length of received footer 
         /// </summary>
-        private byte[] _lastMessage;
+        private int _footerBufferSize;
+
+
+        /// <summary>
+        /// Declared currently receiving message size (based on length in 2 char header) 
+        /// </summary>
+        private int _messageDeclaredSize = -1;
+
+
+        /// <summary>
+        /// Received messages 
+        /// </summary>
+        private ConcurrentQueue<byte[]> receivedMessages = new ConcurrentQueue<byte[]>();
 
 
         /// <summary>
         /// Gets message terminator position
         /// </summary>
-        /// <param name="haystack"></param>
-        /// <param name="needle"></param>
+        /// <param name="buffer"></param>
+        /// <param name="length"></param>
         /// <returns></returns>
-        private int GetMessageTerminatorPosition(byte[] haystack)
+        private int ReadFooterEndMessage(byte[] buffer, int length)
         {
-            var len = Config.MessageTerminator.Length;
-            var limit = haystack.Length - len;
-            for (var i = 0; i <= limit; i++)
+
+            // get terminator lenght
+            int len = Config.MessageTerminator.Length;
+            if(len == 0)
             {
-                var k = 0;
-                for (; k < len; k++)
-                {
-                    if (Config.MessageTerminator[k] != haystack[i + k]) break;
-                }
-                if (k == len) return i;
+                return -1;
             }
+
+            // find footer last position 
+            int matchCount = _footerBufferSize;
+            int pos = 0;
+            for (int i=0; i < length && matchCount < Config.MessageTerminator.Length; i++) {
+                matchCount = (buffer[i] == Config.MessageTerminator[matchCount]) ? matchCount + 1 : 0;
+                pos = i;
+            }
+
+            // update footer buffer 
+            _footerBufferSize = matchCount;
+
+            // return position
+            return matchCount == Config.MessageTerminator.Length ? pos : -1;
+        }
+
+
+        /// <summary>
+        /// Gets end message position 
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <param name="length"></param>
+        /// <returns></returns>
+        private int ReadHeaderEndMessage(byte[] buffer, int length)
+        {
+
+            // header not enabled or invalid buffer
+            length = Math.Min(buffer.Length, length);
+            if (!Config.UseLengthHeader || length == 0)
+            {
+                return -1;
+            }
+
+            // bytes available to read 
+            int readLength = Math.Min(length, _header.Length - _headerBufferSize);
+
+            // read header 
+            if (_headerBufferSize < _header.Length)
+            {
+
+                // copy header buffer 
+                Buffer.BlockCopy(buffer, 0, _header, _headerBufferSize, readLength);
+
+                // update header length receive
+                _headerBufferSize = _headerBufferSize + readLength;
+
+                // header received 
+                if (_headerBufferSize == _header.Length)
+                {
+                    _messageDeclaredSize = Convert.ToChar(_header[0]) * 256 + Convert.ToChar(_header[1]);
+                }
+            }
+
+            // header was read 
+            if(_headerBufferSize == _header.Length)
+            {
+
+                // get end message position in buffer (declared size includes message + terminator)
+                int endMessageDeclared = _messageDeclaredSize - _messageBufferSize + readLength - 1;
+
+                // return position if in current buffer 
+                return endMessageDeclared <= buffer.Length ? endMessageDeclared : -1;
+
+            }
+
+            // header not found yet
             return -1;
+
+        }
+
+
+        /// <summary>
+        /// Clears buffer 
+        /// </summary>
+        private void ClearBuffer()
+        {
+            _message = new byte[10000];
+            _header = new byte[2];
+            _messageBufferSize = 0;
+            _headerBufferSize = 0;
+            _footerBufferSize = 0;
+            _messageDeclaredSize = -1;
         }
 
 
@@ -75,10 +178,8 @@ namespace Layer4Stack.DataProcessors
         /// <returns></returns>
         public byte[] GetNewData()
         {
-            byte[] retVal = new byte[_lastMessageSize];
-            Buffer.BlockCopy(_lastMessage, 0, retVal, 0, _lastMessageSize);
-            _lastMessage = null;
-            return retVal;
+            byte[] message;
+            return receivedMessages.TryDequeue(out message) ? message : null;
         }
 
 
@@ -91,42 +192,62 @@ namespace Layer4Stack.DataProcessors
         {
 
             // check for termintor
-            int terminatorPos = GetMessageTerminatorPosition(buffer);
+            int endMessageTerminator = ReadFooterEndMessage(buffer, length);
+
+            // gets end message declared by header 
+            int endMessageDeclared = ReadHeaderEndMessage(buffer, length);
+            
+            // end message position
+            int endMessagePos = endMessageTerminator != -1 || endMessageDeclared != -1 ? // either terminator or declared end 
+                Math.Min(
+                    endMessageTerminator != -1 ? endMessageTerminator+1 : int.MaxValue, 
+                    endMessageDeclared != -1 ? endMessageDeclared+1 : int.MaxValue) :
+                -1; // not end yet
 
             // copy buffer to message
-            Buffer.BlockCopy(buffer, 0, _message, _messageBufferSize, terminatorPos != -1 ? terminatorPos : length);
-            _messageBufferSize += terminatorPos != -1 ? terminatorPos : length;
+            Buffer.BlockCopy(
+                buffer,
+                0,
+                _message,
+                _messageBufferSize,
+                endMessagePos != -1 ? endMessagePos : length);
+            _messageBufferSize += (endMessagePos != -1 ? endMessagePos : length);
 
             // message received
-            if (terminatorPos != -1)
+            if (endMessagePos != -1)
             {
 
+                // log error matching
+                if(endMessagePos != endMessageTerminator && Config.MessageTerminator.Length > 0)
+                {
+                    _logger.ErrorFormat("Terminator is missing. Used header lenght of {0}.", endMessageDeclared);       
+                }
+                if(endMessagePos != endMessageDeclared && Config.UseLengthHeader)
+                {
+                    _logger.ErrorFormat("Lentgh header of {0} is invalid. Terminator was matched before.", endMessageDeclared);
+                }
+
                 // set received message
-                byte[] receivedMessage = new byte[_messageBufferSize];
-                Buffer.BlockCopy(_message, 0, receivedMessage, 0, _messageBufferSize);
+                byte[] receivedMessage = new byte[_messageBufferSize - _headerBufferSize - _footerBufferSize];
+                Buffer.BlockCopy(_message, _headerBufferSize, receivedMessage, 0, _messageBufferSize - _headerBufferSize - _footerBufferSize);
 
                 // message received
-                _lastMessage = _message;
-                _lastMessageSize = _messageBufferSize;
+                receivedMessages.Enqueue(receivedMessage);
 
-                // clear message
-                _message = new byte[10000];
-                _messageBufferSize = 0;
+                // clear buffer
+                ClearBuffer();
 
                 // add remaining read to message
-                if (length > terminatorPos + Config.MessageTerminator.Length)
+                if (length > endMessagePos + Config.MessageTerminator.Length)
                 {
                     Buffer.BlockCopy(
                         buffer,
-                        terminatorPos + Config.MessageTerminator.Length,
+                        endMessagePos + Config.MessageTerminator.Length,
                         _message,
-                        0, length - terminatorPos - Config.MessageTerminator.Length);
+                        0, length - endMessagePos - Config.MessageTerminator.Length);
                 }
 
             }
-
-            // clear buffer
-            buffer = new byte[256];
 
         }
 
@@ -138,11 +259,26 @@ namespace Layer4Stack.DataProcessors
         /// <returns></returns>
         public byte[] FilterSendData(byte[] msg)
         {
-            // set a message terminator
-            byte[] msgBlcok = new byte[msg.Length + Config.MessageTerminator.Length];
-            Buffer.BlockCopy(msg, 0, msgBlcok, 0, msg.Length);
-            Buffer.BlockCopy(Config.MessageTerminator, 0, msgBlcok, msg.Length, Config.MessageTerminator.Length);
+            // get lenght offset (header lenght)
+            var headerLength = Config.UseLengthHeader ? 2 : 0;
 
+            // get message full lenght 
+            int fullLength = msg.Length + Config.MessageTerminator.Length + headerLength;
+
+            // pack block to be sent 
+            byte[] msgBlcok = new byte[fullLength];
+            if(headerLength > 0) // length header
+            {
+                Buffer.BlockCopy(new byte[2]
+                {
+                    Convert.ToByte((char) (fullLength-headerLength) / 256),
+                    Convert.ToByte((char) (fullLength-headerLength) % 256),
+                }, 0, msgBlcok, 0, 2);
+            }
+            Buffer.BlockCopy(msg, 0, msgBlcok, headerLength, msg.Length);
+            Buffer.BlockCopy(Config.MessageTerminator, 0, msgBlcok, headerLength + msg.Length, Config.MessageTerminator.Length);
+
+            // return block
             return msgBlcok;
         }
 

@@ -57,12 +57,11 @@
     <Compile Include="Api\ServerApi.cs" />
     <Compile Include="DataProcessors\Base\DataProcessorBase.cs" />
     <Compile Include="DataProcessors\Base\DataProcessorConfigBase.cs" />
-    <Compile Include="DataProcessors\Base\DataProcessorProviderBase.cs" />
+    <Compile Include="DataProcessors\DataProcessorProvider.cs" />
     <Compile Include="DataProcessors\Interfaces\IDataProcessor.cs" />
     <Compile Include="DataProcessors\Interfaces\IDataProcessorProvider.cs" />
     <Compile Include="DataProcessors\MessageDataProcessor.cs" />
     <Compile Include="DataProcessors\MessageDataProcessorConfig.cs" />
-    <Compile Include="DataProcessors\MessageDataProcessorProvider.cs" />
     <Compile Include="Services\TcpClientInfo.cs" />
     <Compile Include="Services\Interfaces\IClientService.cs" />
     <Compile Include="Services\Interfaces\IServerService.cs" />

@@ -13,5 +13,10 @@ namespace Layer4Stack.DataProcessors
         /// Message terminator
         /// </summary>
         public byte[] MessageTerminator { get; set; }
+
+        /// <summary>
+        /// Message lenght prefix (first two chars ascii(char1)*265 + ascii(char2))
+        /// </summary>
+        public bool UseLengthHeader { get; set; }
     }
 }

@@ -138,7 +138,9 @@ namespace Layer4Stack.Services.Base
         protected bool SendMessage(TcpClientInfo client, DataContainer message)
         {
 
+            // decorate message to be sent over network
             byte[] msg = client.DataProcessor.FilterSendData(message.Payload);
+            message.RawPayload = msg;
 
             // sent message 
             bool status = SendData(client.Client, msg);

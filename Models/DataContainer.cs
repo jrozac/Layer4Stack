@@ -15,6 +15,11 @@ namespace Layer4Stack.Models
         public byte[] Payload { get; set; }
 
         /// <summary>
+        /// Raw paylod (includes header, footer, etc - depending on data processor)
+        /// </summary>
+        public byte[] RawPayload { get; set; }
+
+        /// <summary>
         /// Message received/sent
         /// </summary>
         public DateTime Time { get; set; }
