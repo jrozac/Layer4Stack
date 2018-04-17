@@ -218,8 +218,8 @@ namespace Layer4Stack.Services
             // start server 
             try
             {
-                // Init TCP listener.
-                _server = new TcpListener(IPAddress.Parse(Config.IpAddress ?? "127.0.0.1"), Config.Port);
+                // Init TCP listener
+                _server = Config.IpAddress != null ? TcpListener.Create(Config.Port) : new TcpListener(IPAddress.Parse(Config.IpAddress), Config.Port);
 
                 // clear clients
                 _clientRepo = new Dictionary<string, TcpClientInfo>();
