@@ -219,7 +219,7 @@ namespace Layer4Stack.Services
             try
             {
                 // Init TCP listener
-                _server = Config.IpAddress != null ? TcpListener.Create(Config.Port) : new TcpListener(IPAddress.Parse(Config.IpAddress), Config.Port);
+                _server = Config.IpAddress == null ? TcpListener.Create(Config.Port) : new TcpListener(IPAddress.Parse(Config.IpAddress), Config.Port);
 
                 // clear clients
                 _clientRepo = new Dictionary<string, TcpClientInfo>();

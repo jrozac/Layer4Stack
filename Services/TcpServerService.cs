@@ -152,6 +152,20 @@ namespace Layer4Stack.Services
 
                 }
 
+                // bind started/failed to start to get start status feedback
+                bool startStatus = false;
+                bool startExecuted = false;
+                _socketServer.ServerStartedEvent += (sender, msg) =>
+                {
+                    startStatus = true;
+                    startExecuted = true;
+                };
+                _socketServer.ServerStartFailureEvent += (sender, msg) =>
+                {
+                    startExecuted = true;
+                };
+
+                // try to start the server
                 #pragma warning disable
                 // start on socket
                 Task.Run(() => {
@@ -159,8 +173,11 @@ namespace Layer4Stack.Services
                 });
                 #pragma warning restore
 
-                // return OK
-                return true;
+                // wait for start execution to complete 
+                Task.Run(() => { while (!startExecuted) ; }).Wait();
+
+                // return start status 
+                return startStatus;
 
             }
 
