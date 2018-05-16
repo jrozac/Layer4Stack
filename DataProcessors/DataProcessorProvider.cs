@@ -26,8 +26,7 @@ namespace Layer4Stack.DataProcessors
         /// <summary>
         /// Configuration
         /// </summary>
-        protected TDataProcessorConfig Config { get; set; }
-
+        private TDataProcessorConfig Config { get; set; }
 
         /// <summary>
         /// Get new instance 

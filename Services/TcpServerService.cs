@@ -104,6 +104,18 @@ namespace Layer4Stack.Services
                 // init socket
                 _socketServer = new TcpServerSocket(DataProcessorProvider, ServerConfig);
 
+                // bind started/failed to start to get start status feedback
+                bool startStatus = false;
+                bool startExecuted = false;
+                _socketServer.ServerStartedEvent += (sender, msg) =>
+                {
+                    startStatus = true;
+                    startExecuted = true;
+                };
+                _socketServer.ServerStartFailureEvent += (sender, msg) =>
+                {
+                    startExecuted = true;
+                };
 
                 // bind events
                 if (EventHandler != null)
@@ -151,19 +163,6 @@ namespace Layer4Stack.Services
                     };
 
                 }
-
-                // bind started/failed to start to get start status feedback
-                bool startStatus = false;
-                bool startExecuted = false;
-                _socketServer.ServerStartedEvent += (sender, msg) =>
-                {
-                    startStatus = true;
-                    startExecuted = true;
-                };
-                _socketServer.ServerStartFailureEvent += (sender, msg) =>
-                {
-                    startExecuted = true;
-                };
 
                 // try to start the server
                 #pragma warning disable

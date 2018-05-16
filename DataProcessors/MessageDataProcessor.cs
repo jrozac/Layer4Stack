@@ -91,7 +91,7 @@ namespace Layer4Stack.DataProcessors
             // find footer last position 
             int matchCount = _footerBufferSize;
             int pos = 0;
-            for (int i=0; i < length && matchCount < Config.MessageTerminator.Length; i++) {
+            for (int i= Config.UseLengthHeader ? 2 :0; i < length && matchCount < Config.MessageTerminator.Length; i++) {
                 matchCount = (buffer[i] == Config.MessageTerminator[matchCount]) ? matchCount + 1 : 0;
                 pos = i;
             }
@@ -197,8 +197,8 @@ namespace Layer4Stack.DataProcessors
             // gets end message declared by header 
             int endMessageDeclared = ReadHeaderEndMessage(buffer, length);
             
-            // end message position
-            int endMessagePos = endMessageTerminator != -1 || endMessageDeclared != -1 ? // either terminator or declared end 
+            // end message length
+            int endMessageLength = endMessageTerminator != -1 || endMessageDeclared != -1 ? // either terminator or declared end 
                 Math.Min(
                     endMessageTerminator != -1 ? endMessageTerminator+1 : int.MaxValue, 
                     endMessageDeclared != -1 ? endMessageDeclared+1 : int.MaxValue) :
@@ -210,19 +210,19 @@ namespace Layer4Stack.DataProcessors
                 0,
                 _message,
                 _messageBufferSize,
-                endMessagePos != -1 ? endMessagePos : length);
-            _messageBufferSize += (endMessagePos != -1 ? endMessagePos : length);
+                endMessageLength != -1 ? endMessageLength : length);
+            _messageBufferSize += (endMessageLength != -1 ? endMessageLength : length);
 
             // message received
-            if (endMessagePos != -1)
+            if (endMessageLength != -1)
             {
 
                 // log error matching
-                if(endMessagePos != endMessageTerminator && Config.MessageTerminator.Length > 0)
+                if(endMessageLength -1 != endMessageTerminator && Config.MessageTerminator.Length > 0)
                 {
                     _logger.ErrorFormat("Terminator is missing. Used header lenght of {0}.", endMessageDeclared);       
                 }
-                if(endMessagePos != endMessageDeclared && Config.UseLengthHeader)
+                if(endMessageLength -1 != endMessageDeclared && Config.UseLengthHeader)
                 {
                     _logger.ErrorFormat("Lentgh header of {0} is invalid. Terminator was matched before.", endMessageDeclared);
                 }
@@ -238,13 +238,13 @@ namespace Layer4Stack.DataProcessors
                 ClearBuffer();
 
                 // add remaining read to message
-                if (length > endMessagePos + Config.MessageTerminator.Length)
+                if (length > endMessageLength + Config.MessageTerminator.Length)
                 {
                     Buffer.BlockCopy(
                         buffer,
-                        endMessagePos + Config.MessageTerminator.Length,
+                        endMessageLength + Config.MessageTerminator.Length,
                         _message,
-                        0, length - endMessagePos - Config.MessageTerminator.Length);
+                        0, length - endMessageLength - Config.MessageTerminator.Length);
                 }
 
             }
