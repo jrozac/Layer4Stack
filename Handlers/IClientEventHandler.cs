@@ -1,7 +1,7 @@
 ﻿using Layer4Stack.Models;
-using Layer4Stack.Services.Interfaces;
+using Layer4Stack.Services;
 
-namespace Layer4Stack.Handlers.Interfaces
+namespace Layer4Stack.Handlers
 {
 
     /// <summary>

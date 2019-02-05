@@ -1,7 +1,4 @@
-﻿using System;
-using Layer4Stack.DataProcessors.Base;
-
-namespace Layer4Stack.DataProcessors
+﻿namespace Layer4Stack.DataProcessors
 {
 
     /// <summary>

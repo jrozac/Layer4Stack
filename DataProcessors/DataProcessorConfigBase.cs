@@ -1,4 +1,4 @@
-﻿namespace Layer4Stack.DataProcessors.Base
+﻿namespace Layer4Stack.DataProcessors
 {
 
     /// <summary>

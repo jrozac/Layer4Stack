@@ -1,4 +1,4 @@
-﻿namespace Layer4Stack.Services.Interfaces
+﻿namespace Layer4Stack.Services
 {
 
     /// <summary>

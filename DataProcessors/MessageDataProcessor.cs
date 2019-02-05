@@ -1,8 +1,6 @@
-﻿using Layer4Stack.DataProcessors.Base;
-using Layer4Stack.DataProcessors.Interfaces;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
-using log4net;
 
 namespace Layer4Stack.DataProcessors
 {
@@ -18,17 +16,10 @@ namespace Layer4Stack.DataProcessors
         /// Constructor
         /// </summary>
         /// <param name="config"></param>
-        public MessageDataProcessor(MessageDataProcessorConfig config) : base(config)
+        public MessageDataProcessor(MessageDataProcessorConfig config, ILogger logger) : base(config, logger)
         {
             ClearBuffer();
         }
-
-
-        /// <summary>
-        /// Logger 
-        /// </summary>
-        private static readonly ILog _logger = LogManager.GetLogger(typeof(MessageDataProcessor));
-
 
         /// <summary>
         /// Currently receiving message 
@@ -220,11 +211,11 @@ namespace Layer4Stack.DataProcessors
                 // log error matching
                 if(endMessageLength -1 != endMessageTerminator && Config.MessageTerminator.Length > 0)
                 {
-                    _logger.ErrorFormat("Terminator is missing. Used header lenght of {0}.", endMessageDeclared);       
+                    Logger.LogError("Terminator is missing. Used header lenght of {length}.", endMessageDeclared);       
                 }
                 if(endMessageLength -1 != endMessageDeclared && Config.UseLengthHeader)
                 {
-                    _logger.ErrorFormat("Lentgh header of {0} is invalid. Terminator was matched before.", endMessageDeclared);
+                    Logger.LogError("Lentgh header of {end} is invalid. Terminator was matched before.", endMessageDeclared);
                 }
 
                 // set received message

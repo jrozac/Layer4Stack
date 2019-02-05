@@ -1,14 +1,13 @@
-﻿using Layer4Stack.DataProcessors.Interfaces;
+﻿using Layer4Stack.DataProcessors;
 using Layer4Stack.Models;
-using Layer4Stack.Models.Base;
-using log4net;
+using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Layer4Stack.Services.Base
+namespace Layer4Stack.Services
 {
 
     /// <summary>
@@ -21,15 +20,16 @@ namespace Layer4Stack.Services.Base
         /// <summary>
         /// logger
         /// </summary>
-        protected static ILog _logger = LogManager.GetLogger(typeof(TcpSocketBase<TConfig>));
+        protected readonly ILogger Logger;
 
 
         /// <summary>
         /// Default constructor
         /// </summary>
         /// <param name="dataProcessor"></param>
-        protected TcpSocketBase(IDataProcessorProvider dataProcessorProvider)
+        protected TcpSocketBase(IDataProcessorProvider dataProcessorProvider, ILoggerFactory loggerFactory)
         {
+            Logger = loggerFactory.CreateLogger(GetType());
             DataProcessorProvider = dataProcessorProvider;
         }
 
@@ -75,12 +75,8 @@ namespace Layer4Stack.Services.Base
         /// <param name="model"></param>
         protected void RaiseMsgReceivedEvent(DataContainer model)
         {
-            _logger.Debug(string.Format("Message of lenght {0} received.", model.Payload.Length));
-            var eh = MsgReceivedEvent;
-            if (eh != null)
-            {
-                eh(this, model);
-            }
+            Logger.LogDebug("Message of lenght {length} received.", model.Payload.Length);
+            MsgReceivedEvent?.Invoke(this, model);
         }
 
 
@@ -90,12 +86,8 @@ namespace Layer4Stack.Services.Base
         /// <param name="model"></param>
         protected void RaiseMsgSentEvent(DataContainer model)
         {
-            _logger.Debug(string.Format("Message of lenght {0} sent.", model.Payload.Length));
-            var eh = MsgSentEvent;
-            if (eh != null)
-            {
-                eh(this, model);
-            }
+            Logger.LogDebug("Message of lenght {lenght} sent.", model.Payload.Length);
+            MsgSentEvent?.Invoke(this, model);
         }
 
 
@@ -105,12 +97,8 @@ namespace Layer4Stack.Services.Base
         /// <param name="model"></param>
         protected void RaiseClientDisconnectedEvent(ClientInfo model)
         {
-            _logger.Info(string.Format("Client {0} disconnected.", model.Id));
-            var eh = ClientDisconnectedEvent;
-            if (eh != null)
-            {
-                eh(this, model);
-            }
+            Logger.LogInformation("Client {id} disconnected.", model.Id);
+            ClientDisconnectedEvent?.Invoke(this, model);
         }
 
 
@@ -120,12 +108,8 @@ namespace Layer4Stack.Services.Base
         /// <param name="model"></param>
         protected void RaiseClientConnectedEvent(ClientInfo model)
         {
-            _logger.Info(string.Format("Client {0} connected.", model.Id));
-            var eh = ClientConnectedEvent;
-            if (eh != null)
-            {
-                eh(this, model);
-            }
+            Logger.LogInformation("Client {id} connected.", model.Id);
+            ClientConnectedEvent?.Invoke(this, model);
         }
 
 
@@ -166,7 +150,7 @@ namespace Layer4Stack.Services.Base
             try
             {
                 client.GetStream().Write(data, 0, data.Length);
-                _logger.Debug(string.Format("Data of lenght {0} sent.", data.Length));
+                Logger.LogDebug("Data of lenght {length} sent.", data.Length);
             }
             catch (Exception)
             {

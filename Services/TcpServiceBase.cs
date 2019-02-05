@@ -1,7 +1,8 @@
-﻿using Layer4Stack.DataProcessors.Interfaces;
+﻿using Layer4Stack.DataProcessors;
+using Microsoft.Extensions.Logging;
 using System.Threading;
 
-namespace Layer4Stack.Services.Base
+namespace Layer4Stack.Services
 {
 
     /// <summary>
@@ -10,13 +11,18 @@ namespace Layer4Stack.Services.Base
     public abstract class TcpServiceBase
     {
 
+        /// <summary>
+        /// Logger factory 
+        /// </summary>
+        protected ILoggerFactory LoggerFactory;
 
         /// <summary>
         /// Default constructor
         /// </summary>
         /// <param name="dataProcessor"></param>
-        protected TcpServiceBase(IDataProcessorProvider dataProcessorProvider)
+        protected TcpServiceBase(IDataProcessorProvider dataProcessorProvider, ILoggerFactory loggerFactory)
         {
+            LoggerFactory = loggerFactory;
             DataProcessorProvider = dataProcessorProvider;
         }
 

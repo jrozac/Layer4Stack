@@ -1,8 +1,8 @@
-﻿using Layer4Stack.DataProcessors.Base;
-using Layer4Stack.DataProcessors.Interfaces;
-using Layer4Stack.Handlers.Interfaces;
+﻿using Layer4Stack.DataProcessors;
+using Layer4Stack.Handlers;
 using Layer4Stack.Models;
 using Layer4Stack.Services;
+using Microsoft.Extensions.Logging;
 using System;
 
 namespace Layer4Stack.Api
@@ -18,18 +18,26 @@ namespace Layer4Stack.Api
     {
 
         /// <summary>
+        /// Logger factory 
+        /// </summary>
+        private readonly ILoggerFactory _loggerFactory;
+
+        /// <summary>
         /// Inits client api
         /// </summary>
         /// <param name="clientConfig"></param>
         /// <param name="dataProcessorConfig"></param>
         /// <param name="eventHandler"></param>
-        public ClientApi(ClientConfig clientConfig, TDataProcessor dataProcessorConfig, IClientEventHandler eventHandler)
+        public ClientApi(ClientConfig clientConfig, TDataProcessor dataProcessorConfig, 
+            IClientEventHandler eventHandler, ILoggerFactory loggerFactory)
         {
+            _loggerFactory = loggerFactory;
+
             // create data processor provider 
             IDataProcessorProvider dataProcessorProvider = (TDataProcessorProvider) Activator.CreateInstance(typeof(TDataProcessorProvider), new object[] { dataProcessorConfig });
 
             // create client 
-            Client = new TcpClientService(dataProcessorProvider, eventHandler, clientConfig);
+            Client = new TcpClientService(dataProcessorProvider, eventHandler, clientConfig, _loggerFactory);
 
         }
 

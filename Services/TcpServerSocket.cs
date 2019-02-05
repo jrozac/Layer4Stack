@@ -1,6 +1,6 @@
-﻿using Layer4Stack.DataProcessors.Interfaces;
+﻿using Layer4Stack.DataProcessors;
 using Layer4Stack.Models;
-using Layer4Stack.Services.Base;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,7 +22,8 @@ namespace Layer4Stack.Services
         /// Constructor
         /// </summary>
         /// <param name="dataProcessor"></param>
-        public TcpServerSocket(IDataProcessorProvider dataProcessorProvider, ServerConfig serverConfig) : base(dataProcessorProvider)
+        public TcpServerSocket(IDataProcessorProvider dataProcessorProvider, ServerConfig serverConfig, 
+            ILoggerFactory loggerFactory) : base(dataProcessorProvider, loggerFactory)
         {
             Config = serverConfig;
         }
@@ -38,6 +39,7 @@ namespace Layer4Stack.Services
         /// Contains connected clients
         /// </summary>
         private Dictionary<string, TcpClientInfo> _clientRepo = new Dictionary<string, TcpClientInfo>();
+        private ServerConfig serverConfig;
 
 
         /// <summary>
@@ -70,12 +72,8 @@ namespace Layer4Stack.Services
         /// <param name="model"></param>
         protected void RaiseServerStartFailureEvent()
         {
-            _logger.Debug(string.Format("Server failed to start on port {0}.", Config.Port));
-            var eh = ServerStartFailureEvent;
-            if (eh != null)
-            {
-                eh(this, null);
-            }
+            Logger.LogDebug("Server failed to start on port {port}.", Config.Port);
+            ServerStartFailureEvent?.Invoke(this, null);
         }
 
 
@@ -85,12 +83,8 @@ namespace Layer4Stack.Services
         /// <param name="model"></param>
         protected void RaiseServerStartedEvent()
         {
-            _logger.Debug(string.Format("Server started on port {0}.", Config.Port));
-            var eh = ServerStartedEvent;
-            if (eh != null)
-            {
-                eh(this, null);
-            }
+            Logger.LogDebug("Server started on port {port}.", Config.Port);
+            ServerStartedEvent?.Invoke(this, null);
         }
 
 
@@ -100,12 +94,8 @@ namespace Layer4Stack.Services
         /// <param name="model"></param>
         protected void RaiseServerStoppedEvent()
         {
-            _logger.Debug(string.Format("Server stopped on port {0}.", Config.Port));
-            var eh = ServerStoppedEvent;
-            if (eh != null)
-            {
-                eh(this, null);
-            }
+            Logger.LogDebug("Server stopped on port {port}.", Config.Port);
+            ServerStoppedEvent?.Invoke(this, null);
         }
 
 
@@ -232,7 +222,7 @@ namespace Layer4Stack.Services
 
             } catch(Exception e)
             {
-                _logger.Error(string.Format("Server failed to start on port {0}.", Config.Port), e);
+                Logger.LogError("Server failed to start on port {port}. Exception: {exception}", Config.Port, e.Message);
 
                 // raise server failed to start
                 #pragma warning disable
@@ -293,12 +283,12 @@ namespace Layer4Stack.Services
             // socket errro
             catch (SocketException)
             {
-                _logger.Debug("Server stopped. SocketException exception occured.");
+                Logger.LogDebug("Server stopped. SocketException exception occured.");
             }
             // Listener was stopped.
             catch(ObjectDisposedException)
             {
-                _logger.Debug("Server stopped. ObjectDisposedException exception occured.");
+                Logger.LogDebug("Server stopped. ObjectDisposedException exception occured.");
             }
             finally
             {

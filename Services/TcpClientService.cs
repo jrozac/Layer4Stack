@@ -1,8 +1,7 @@
-﻿using Layer4Stack.DataProcessors.Interfaces;
-using Layer4Stack.Handlers.Interfaces;
+﻿using Layer4Stack.DataProcessors;
+using Layer4Stack.Handlers;
 using Layer4Stack.Models;
-using Layer4Stack.Services.Base;
-using Layer4Stack.Services.Interfaces;
+using Microsoft.Extensions.Logging;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,7 +18,8 @@ namespace Layer4Stack.Services
         /// Constructor
         /// </summary>
         /// <param name="dataProcessor"></param>
-        public TcpClientService(IDataProcessorProvider dataProcessorProvider, IClientEventHandler eventHandler, ClientConfig clientConfig) : base(dataProcessorProvider)
+        public TcpClientService(IDataProcessorProvider dataProcessorProvider, IClientEventHandler eventHandler, 
+            ClientConfig clientConfig, ILoggerFactory loggerFactory) : base(dataProcessorProvider, loggerFactory)
         {
             ClientConfig = clientConfig;
             EventHandler = eventHandler;
@@ -65,7 +65,7 @@ namespace Layer4Stack.Services
             CancellationTokenSource = new CancellationTokenSource();
 
             // setup socket server
-            _socketClient = new TcpClientSocket(DataProcessorProvider, ClientConfig);
+            _socketClient = new TcpClientSocket(DataProcessorProvider, ClientConfig, LoggerFactory);
 
             // bind event handling 
             if(EventHandler != null) { 

@@ -1,6 +1,6 @@
-﻿using Layer4Stack.DataProcessors.Interfaces;
+﻿using Layer4Stack.DataProcessors;
 using Layer4Stack.Models;
-using Layer4Stack.Services.Base;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Net.Sockets;
 using System.Threading;
@@ -19,7 +19,7 @@ namespace Layer4Stack.Services
         /// Constructor
         /// </summary>
         /// <param name="dataProcessor"></param>
-        public TcpClientSocket(IDataProcessorProvider dataProcessorProvider, ClientConfig clientConfig) : base(dataProcessorProvider)
+        public TcpClientSocket(IDataProcessorProvider dataProcessorProvider, ClientConfig clientConfig, ILoggerFactory loggerFactory) : base(dataProcessorProvider, loggerFactory)
         {
             Config = clientConfig;
         }
@@ -42,12 +42,8 @@ namespace Layer4Stack.Services
         /// <param name="model"></param>
         protected void RaiseClientConnectionFailureEvent(ClientInfo model)
         {
-            _logger.Debug(string.Format("Failed to connect to {0} on port {1}.", model.IpAddress, model.Port));
-            var eh = ClientConnectionFailureEvent;
-            if (eh != null)
-            {
-                eh(this, model);
-            }
+            Logger.LogDebug("Failed to connect to {ip} on port {port}.", model.IpAddress, model.Port);
+            ClientConnectionFailureEvent?.Invoke(this, model);
         }
 
 

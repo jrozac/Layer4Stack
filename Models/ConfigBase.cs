@@ -1,4 +1,4 @@
-﻿namespace Layer4Stack.Models.Base
+﻿namespace Layer4Stack.Models
 {
 
     /// <summary>
