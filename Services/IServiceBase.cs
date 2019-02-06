@@ -1,10 +1,12 @@
-﻿namespace Layer4Stack.Services
+﻿using System;
+
+namespace Layer4Stack.Services
 {
 
     /// <summary>
     /// Service base interface
     /// </summary>
-    public interface IServiceBase
+    public interface IServiceBase : IDisposable
     {
     }
 }

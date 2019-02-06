@@ -203,6 +203,14 @@ namespace Layer4Stack.Services
             return false;
         }
 
+        /// <summary>
+        /// Dispose service
+        /// </summary>
+        public new void Dispose()
+        {
+            Stop();
+            base.Dispose();
+        }
 
     }
 }

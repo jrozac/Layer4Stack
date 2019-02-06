@@ -273,5 +273,18 @@ namespace Layer4Stack.DataProcessors
             return msgBlcok;
         }
 
+        /// <summary>
+        /// Gets identifier
+        /// </summary>
+        /// <param name="msg"></param>
+        /// <returns></returns>
+        public byte[] GetIdentifier(byte[] msg)
+        {
+            if(Config.ExtractId != null)
+            {
+                return Config.ExtractId(msg);
+            }
+            return null;
+        }
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace Layer4Stack.DataProcessors
+﻿using System;
+
+namespace Layer4Stack.DataProcessors
 {
 
     /// <summary>
@@ -15,5 +17,10 @@
         /// Message lenght prefix (first two chars ascii(char1)*265 + ascii(char2))
         /// </summary>
         public bool UseLengthHeader { get; set; }
+
+        /// <summary>
+        /// Extract id function
+        /// </summary>
+        public Func<byte[],byte[]> ExtractId { get; set; }
     }
 }

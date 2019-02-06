@@ -54,6 +54,35 @@ namespace Layer4Stack.Services
             return _socketClient != null ? _socketClient.Send(msg) : false;
         }
 
+        /// <summary>
+        /// Remote procedure
+        /// </summary>
+        /// <param name="req"></param>
+        /// <param name="timeout"></param>
+        /// <returns></returns>
+        public byte[] Rpc(byte[] req, int timeout)
+        {
+            // get identifier
+            var id = DataProcessor.GetIdentifier(req);
+            if(id == null)
+            {
+                Logger.LogError("Identifier not found.");
+                return null;
+            }
+
+            // send 
+            var rsp = DataSynchronizator.ExecuteAction(id, timeout, () => {
+                bool status = _socketClient != null ? _socketClient.Send(req) : false;
+                if (!status)
+                {
+                    Logger.LogError("Failed to sent message.");
+                }
+                return status;
+            });
+
+            // return response
+            return rsp;
+        }
 
         /// <summary>
         /// Connect to server
@@ -90,6 +119,11 @@ namespace Layer4Stack.Services
                 // message received
                 _socketClient.MsgReceivedEvent += (sender, msg) =>
                 {
+                    var id = DataProcessor.GetIdentifier(msg.Payload);
+                    if(id != null)
+                    {
+                        DataSynchronizator.NotifyResult(id, msg.Payload);
+                    }
                     EventHandler.HandleReceivedData(this, msg);
                 };
 
@@ -137,5 +171,13 @@ namespace Layer4Stack.Services
             return _socketClient != null ? _socketClient.Conneted : false;
         } }
 
+        /// <summary>
+        /// Dispose service
+        /// </summary>
+        public new void Dispose()
+        {
+            Disconnect();
+            base.Dispose();
+        }
     }
 }

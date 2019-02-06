@@ -1,10 +1,12 @@
-﻿namespace Layer4Stack.Services
+﻿using System;
+
+namespace Layer4Stack.Services
 {
 
     /// <summary>
     /// Client service 
     /// </summary>
-    public interface IClientService
+    public interface IClientService : IDisposable
     {
 
         /// <summary>
@@ -26,6 +28,13 @@
         /// <returns></returns>
         bool Send(byte[] data);
 
+        /// <summary>
+        /// Remote procedure call
+        /// </summary>
+        /// <param name="req"></param>
+        /// <param name="timeout"></param>
+        /// <returns></returns>
+        byte[] Rpc(byte[] req, int timeout);
 
         /// <summary>
         /// Connected status

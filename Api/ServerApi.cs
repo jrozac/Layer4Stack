@@ -112,5 +112,13 @@ namespace Layer4Stack.Api
         {
             return Server.Stop();
         }
+
+        /// <summary>
+        /// Dispose
+        /// </summary>
+        public void Dispose()
+        {
+            Server.Dispose();
+        }
     }
 }

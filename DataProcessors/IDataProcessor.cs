@@ -29,6 +29,13 @@
         /// <returns></returns>
         byte[] FilterSendData(byte[] msg);
 
+        /// <summary>
+        /// Gets identifier
+        /// </summary>
+        /// <param name="msg"></param>
+        /// <returns></returns>
+        byte[] GetIdentifier(byte[] msg);
+
 
     }
 }

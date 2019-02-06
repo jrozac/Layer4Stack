@@ -76,6 +76,24 @@ namespace Layer4Stack.Api
             return Client.Send(data);
         }
 
+        /// <summary>
+        /// Call rpc
+        /// </summary>
+        /// <param name="req"></param>
+        /// <param name="timeout"></param>
+        /// <returns></returns>
+        public byte[] Rpc(byte[] req, int timeout)
+        {
+            return Client.Rpc(req, timeout);
+        }
+
+        /// <summary>
+        /// Dispose
+        /// </summary>
+        public void Dispose()
+        {
+            Client.Dispose();
+        }
 
         /// <summary>
         /// Connection status 
