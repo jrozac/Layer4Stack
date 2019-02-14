@@ -21,9 +21,10 @@ namespace Layer4Stack.Services
         /// <summary>
         /// Constructor
         /// </summary>
-        /// <param name="dataProcessor"></param>
-        public TcpServerSocket(IDataProcessorProvider dataProcessorProvider, ServerConfig serverConfig, 
-            ILoggerFactory loggerFactory) : base(dataProcessorProvider, loggerFactory)
+        /// <param name="createDataProcessorFunc"></param>
+        /// <param name="loggerFactory"></param>
+        public TcpServerSocket(Func<IDataProcessor> createDataProcessorFunc, ServerConfig serverConfig, 
+            ILoggerFactory loggerFactory) : base(createDataProcessorFunc, loggerFactory)
         {
             Config = serverConfig;
         }
@@ -260,7 +261,7 @@ namespace Layer4Stack.Services
                         IpAddress = ((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString(),
                         Id = Guid.NewGuid().ToString(),
                         Client = client,
-                        DataProcessor = DataProcessorProvider.New,
+                        DataProcessor = CreateDataProcessorFunc(),
                         ClientHandlerTokenSource = new CancellationTokenSource()
                     };
 

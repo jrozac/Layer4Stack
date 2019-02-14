@@ -2,6 +2,7 @@
 using Layer4Stack.Handlers;
 using Layer4Stack.Models;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,31 +19,29 @@ namespace Layer4Stack.Services
         /// Constructor
         /// </summary>
         /// <param name="dataProcessor"></param>
-        public TcpClientService(IDataProcessorProvider dataProcessorProvider, IClientEventHandler eventHandler, 
-            ClientConfig clientConfig, ILoggerFactory loggerFactory) : base(dataProcessorProvider, loggerFactory)
+        public TcpClientService(IClientEventHandler eventHandler, 
+                ClientConfig clientConfig, ILoggerFactory loggerFactory, 
+                Func<IDataProcessor> createDataProcessorFunc = null) 
+            : base(loggerFactory, createDataProcessorFunc)
         {
             ClientConfig = clientConfig;
             EventHandler = eventHandler;
         }
-
 
         /// <summary>
         /// Socket client
         /// </summary>
         private TcpClientSocket _socketClient;
 
-
         /// <summary>
         /// Client config
         /// </summary>
         protected ClientConfig ClientConfig { get; set; }
 
-
         /// <summary>
         /// Message handler
         /// </summary>
         protected IClientEventHandler EventHandler { get; set; }
-
 
         /// <summary>
         /// Sends data
@@ -94,7 +93,7 @@ namespace Layer4Stack.Services
             CancellationTokenSource = new CancellationTokenSource();
 
             // setup socket server
-            _socketClient = new TcpClientSocket(DataProcessorProvider, ClientConfig, LoggerFactory);
+            _socketClient = new TcpClientSocket(CreateDataProcessorFunc, ClientConfig, LoggerFactory);
 
             // bind event handling 
             if(EventHandler != null) { 
@@ -144,7 +143,6 @@ namespace Layer4Stack.Services
 
         }
 
-
         /// <summary>
         /// Disconnects client
         /// </summary>
@@ -161,7 +159,6 @@ namespace Layer4Stack.Services
             }
 
         }
-
 
         /// <summary>
         /// Client connected status

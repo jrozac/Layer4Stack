@@ -8,11 +8,6 @@
     {
 
         /// <summary>
-        /// Socket buffer size 
-        /// </summary>
-        private int _socketBufferSize = 5000;
-
-        /// <summary>
         /// Server port
         /// </summary>
         public int Port { get; set; }
@@ -22,11 +17,9 @@
         /// </summary>
         public string IpAddress { get; set; }
 
-
         /// <summary>
         /// Socket buffer size
         /// </summary>
-        public int SocketBufferSize { get { return _socketBufferSize;  } set { _socketBufferSize = value; } }
-
+        public int SocketBufferSize { get; set; } = 5000;
     }
 }

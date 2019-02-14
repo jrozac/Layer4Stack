@@ -19,7 +19,7 @@ namespace Layer4Stack.Services
         /// Constructor
         /// </summary>
         /// <param name="dataProcessor"></param>
-        public TcpClientSocket(IDataProcessorProvider dataProcessorProvider, ClientConfig clientConfig, ILoggerFactory loggerFactory) : base(dataProcessorProvider, loggerFactory)
+        public TcpClientSocket(Func<IDataProcessor> createDataProcessorFunc, ClientConfig clientConfig, ILoggerFactory loggerFactory) : base(createDataProcessorFunc, loggerFactory)
         {
             Config = clientConfig;
         }
@@ -76,7 +76,7 @@ namespace Layer4Stack.Services
                 IpAddress = Config.IpAddress,
                 Id = Guid.NewGuid().ToString(),
                 Client = client,
-                DataProcessor = DataProcessorProvider.New
+                DataProcessor = CreateDataProcessorFunc()
             };
 
 

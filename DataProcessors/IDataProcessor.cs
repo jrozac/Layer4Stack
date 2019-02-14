@@ -1,4 +1,6 @@
-﻿namespace Layer4Stack.DataProcessors
+﻿using System.Collections.Generic;
+
+namespace Layer4Stack.DataProcessors
 {
 
     /// <summary>
@@ -8,19 +10,11 @@
     {
 
         /// <summary>
-        /// Gets last received data time.
-        /// </summary>
-        /// <returns></returns>
-        byte[] GetNewData();
-
-
-        /// <summary>
         /// Handles received raw data
         /// </summary>
         /// <param name="buffer"></param>
         /// <param name="length"></param>
-        void ProcessReceivedRawData(byte[] buffer, int length);
-
+        IEnumerable<byte[]> ProcessReceivedRawData(byte[] recieved, int length);
 
         /// <summary>
         /// Filters outgoing data

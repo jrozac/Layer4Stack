@@ -2,6 +2,7 @@
 using Layer4Stack.Handlers.Interfaces;
 using Layer4Stack.Models;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,8 +19,8 @@ namespace Layer4Stack.Services
         /// Constructor
         /// </summary>
         /// <param name="dataProcessor"></param>
-        public TcpServerService(IDataProcessorProvider dataProcessorProvider, IServerEventHandler eventHandler, 
-            ServerConfig serverConfig, ILoggerFactory loggerFactory) : base(dataProcessorProvider, loggerFactory)
+        public TcpServerService(IServerEventHandler eventHandler, ServerConfig serverConfig, 
+            ILoggerFactory loggerFactory, Func<IDataProcessor> createDataProcessorFunc = null) : base(loggerFactory, createDataProcessorFunc)
         {
             ServerConfig = serverConfig;
             EventHandler = eventHandler;
@@ -102,7 +103,7 @@ namespace Layer4Stack.Services
                 CancellationTokenSource = new CancellationTokenSource();
 
                 // init socket
-                _socketServer = new TcpServerSocket(DataProcessorProvider, ServerConfig, LoggerFactory);
+                _socketServer = new TcpServerSocket(CreateDataProcessorFunc, ServerConfig, LoggerFactory);
 
                 // bind started/failed to start to get start status feedback
                 bool startStatus = false;

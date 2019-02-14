@@ -32,25 +32,24 @@ namespace Layer4Stack.Services
         /// Default constructor
         /// </summary>
         /// <param name="dataProcessor"></param>
-        protected TcpServiceBase(IDataProcessorProvider dataProcessorProvider, ILoggerFactory loggerFactory)
+        protected TcpServiceBase(ILoggerFactory loggerFactory, Func<IDataProcessor> createDataProcessorFunc = null)
         {
             LoggerFactory = loggerFactory;
             Logger = loggerFactory.CreateLogger(GetType());
-            DataProcessorProvider = dataProcessorProvider;
-            DataProcessor = dataProcessorProvider.New;
+            CreateDataProcessorFunc = createDataProcessorFunc ?? 
+                new Func<IDataProcessor>(() => new MessageDataProcessor(MessageDataProcessorConfig.Default(), LoggerFactory.CreateLogger<MessageDataProcessor>()));
             DataSynchronizator = new DataSynchronizator();
         }
 
         /// <summary>
         /// Data processor
         /// </summary>
-        protected IDataProcessor DataProcessor { get; set; }
+        protected IDataProcessor DataProcessor { get; private set; }
 
         /// <summary>
-        /// Data processor provider
+        /// Data processor creator
         /// </summary>
-        protected IDataProcessorProvider DataProcessorProvider { get; set; }
-
+        protected Func<IDataProcessor> CreateDataProcessorFunc { get; private set; }
 
         /// <summary>
         /// Global cancellation token source

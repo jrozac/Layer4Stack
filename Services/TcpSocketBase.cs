@@ -3,6 +3,7 @@ using Layer4Stack.Models;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
+using System.Linq;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,22 +23,20 @@ namespace Layer4Stack.Services
         /// </summary>
         protected readonly ILogger Logger;
 
-
         /// <summary>
         /// Default constructor
         /// </summary>
         /// <param name="dataProcessor"></param>
-        protected TcpSocketBase(IDataProcessorProvider dataProcessorProvider, ILoggerFactory loggerFactory)
+        protected TcpSocketBase(Func<IDataProcessor> createDataProcessorFunc, ILoggerFactory loggerFactory)
         {
             Logger = loggerFactory.CreateLogger(GetType());
-            DataProcessorProvider = dataProcessorProvider;
+            CreateDataProcessorFunc = createDataProcessorFunc;
         }
 
-
         /// <summary>
-        /// Data processor provider
+        /// Data processor creator
         /// </summary>
-        protected IDataProcessorProvider DataProcessorProvider { get; set; }
+        protected Func<IDataProcessor> CreateDataProcessorFunc { get; private set; }
 
 
         /// <summary>
@@ -222,19 +221,17 @@ namespace Layer4Stack.Services
                 }
 
                 // received data
-                client.DataProcessor.ProcessReceivedRawData(buffer, i);
-
-                // get message 
-                byte[] receivedMessage = client.DataProcessor.GetNewData();
+                var receivedMessages = client.DataProcessor.ProcessReceivedRawData(buffer, i);
+ 
                 
                 // message received
-                if(receivedMessage != null)
+                if(receivedMessages != null && receivedMessages.Any())
                 {
                     #pragma warning disable
-                    Task.Run(async () =>
+                    receivedMessages.ToList().ForEach(msg => Task.Run(async () =>
                     {
-                        DataReceived(receivedMessage, client.Id);
-                    });
+                        DataReceived(msg, client.Id);
+                    }));
                     #pragma warning restore
                 }
 
@@ -249,7 +246,6 @@ namespace Layer4Stack.Services
             });
 
         }
-
 
         /// <summary>
         /// Message received handler 
@@ -266,7 +262,6 @@ namespace Layer4Stack.Services
             RaiseMsgReceivedEvent(model);
 
         }
-
 
     }
 }
