@@ -21,96 +21,96 @@ namespace Layer4Stack.Services
         /// <summary>
         /// logger
         /// </summary>
-        protected readonly ILogger Logger;
+        protected readonly ILogger _logger;
+
+        /// <summary>
+        /// Data processor creator
+        /// </summary>
+        protected readonly Func<IDataProcessor> _createDataProcessorFunc;
+
+        /// <summary>
+        /// Config 
+        /// </summary>
+        protected readonly TConfig _config;
 
         /// <summary>
         /// Default constructor
         /// </summary>
         /// <param name="dataProcessor"></param>
-        protected TcpSocketBase(Func<IDataProcessor> createDataProcessorFunc, ILoggerFactory loggerFactory)
+        protected TcpSocketBase(TConfig config, Func<IDataProcessor> createDataProcessorFunc, ILoggerFactory loggerFactory)
         {
-            Logger = loggerFactory.CreateLogger(GetType());
-            CreateDataProcessorFunc = createDataProcessorFunc;
+            _logger = loggerFactory.CreateLogger(GetType());
+            _createDataProcessorFunc = createDataProcessorFunc;
+            _config = config;
         }
 
-        /// <summary>
-        /// Data processor creator
-        /// </summary>
-        protected Func<IDataProcessor> CreateDataProcessorFunc { get; private set; }
-
-
-        /// <summary>
-        /// Config 
-        /// </summary>
-        protected TConfig Config { get; set; }
+        #region Events 
 
         /// <summary>
         /// Message received event.
         /// </summary>
         public event EventHandler<DataContainer> MsgReceivedEvent;
 
-
         /// <summary>
         /// Message sent event.
         /// </summary>
         public event EventHandler<DataContainer> MsgSentEvent;
-
 
         /// <summary>
         /// Client connected event
         /// </summary>
         public event EventHandler<ClientInfo> ClientConnectedEvent;
 
-
         /// <summary>
         /// Client disconnected event
         /// </summary>
         public event EventHandler<ClientInfo> ClientDisconnectedEvent;
 
-
         /// <summary>
         /// Raises message received event
         /// </summary>
         /// <param name="model"></param>
-        protected void RaiseMsgReceivedEvent(DataContainer model)
+        protected async Task<bool> RaiseMsgReceivedEvent(DataContainer model)
         {
-            Logger.LogDebug("Message of lenght {length} received.", model.Payload.Length);
+            _logger.LogDebug("Message of lenght {length} received.", model.Payload.Length);
             MsgReceivedEvent?.Invoke(this, model);
+            return await Task.FromResult(true);
         }
-
 
         /// <summary>
         /// Raises message received event
         /// </summary>
         /// <param name="model"></param>
-        protected void RaiseMsgSentEvent(DataContainer model)
+        protected async Task<bool> RaiseMsgSentEvent(DataContainer model)
         {
-            Logger.LogDebug("Message of lenght {lenght} sent.", model.Payload.Length);
+            _logger.LogDebug("Message of lenght {lenght} sent.", model.Payload.Length);
             MsgSentEvent?.Invoke(this, model);
+            return await Task.FromResult(true);
         }
-
 
         /// <summary>
         /// Raises client disconnected event
         /// </summary>
         /// <param name="model"></param>
-        protected void RaiseClientDisconnectedEvent(ClientInfo model)
+        protected async Task<bool> RaiseClientDisconnectedEvent(ClientInfo model)
         {
-            Logger.LogInformation("Client {id} disconnected.", model.Id);
+            _logger.LogInformation("Client {id} disconnected.", model.Id);
             ClientDisconnectedEvent?.Invoke(this, model);
+            return await Task.FromResult(true);
         }
-
 
         /// <summary>
         /// Raises client connected event
         /// </summary>
         /// <param name="model"></param>
-        protected void RaiseClientConnectedEvent(ClientInfo model)
+        protected async Task<bool> RaiseClientConnectedEvent(ClientInfo model)
         {
-            Logger.LogInformation("Client {id} connected.", model.Id);
+            _logger.LogInformation("Client {id} connected.", model.Id);
             ClientConnectedEvent?.Invoke(this, model);
+            return await Task.FromResult(true);
         }
 
+        #endregion
 
         /// <summary>
         /// Send message
@@ -118,7 +118,7 @@ namespace Layer4Stack.Services
         /// <param name="client"></param>
         /// <param name="message"></param>
         /// <returns></returns>
-        protected bool SendMessage(TcpClientInfo client, DataContainer message)
+        protected async Task<bool> SendMessage(TcpClientInfo client, DataContainer message)
         {
 
             // decorate message to be sent over network
@@ -126,7 +126,7 @@ namespace Layer4Stack.Services
             message.RawPayload = msg;
 
             // sent message 
-            bool status = SendData(client.Client, msg);
+            bool status = await SendData(client.Client, msg);
 
             // raise sent 
             if(status)
@@ -137,27 +137,26 @@ namespace Layer4Stack.Services
 
         }
 
-
         /// <summary>
         /// Sends data
         /// </summary>
         /// <param name="client"></param>
         /// <param name="data"></param>
         /// <returns></returns>
-        private bool SendData(TcpClient client, byte[] data)
+        private async Task<bool> SendData(TcpClient client, byte[] data)
         {
             try
             {
-                client.GetStream().Write(data, 0, data.Length);
-                Logger.LogDebug("Data of lenght {length} sent.", data.Length);
+                await client.GetStream().WriteAsync(data, 0, data.Length);
+                _logger.LogDebug("Data of lenght {length} sent.", data.Length);
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                _logger.LogError("Failed to send data with exception {type}: {message}.", e.GetType(), e.Message);
                 return false;
             }
             return true;
         }
-
 
         /// <summary>
         /// Reads data from stream
@@ -165,10 +164,10 @@ namespace Layer4Stack.Services
         /// <param name="client"></param>
         /// <param name="clientInfo"></param>
         /// <param name="ct"></param>
-        protected void ReadData(TcpClientInfo client, CancellationToken[] ct)
+        protected async Task ReadData(TcpClientInfo client)
         {
             // get buffer size 
-            int bufferSize = Config.SocketBufferSize;
+            int bufferSize = _config.SocketBufferSize;
 
             // Buffer for reading data
             byte[] buffer = new byte[bufferSize];
@@ -182,34 +181,19 @@ namespace Layer4Stack.Services
             while (true)
             {
 
-                // Task cancelled
-                bool quit = false;
-                if(ct != null)
-                {
-                    foreach(CancellationToken token in ct)
-                    {
-                        if(token.IsCancellationRequested)
-                        {
-                            quit = true;
-                            break;
-                        }
-                    }
-                }
-                if(quit)
-                {
-                    break;
-                }
-
                 // read data from steram
                 try
                 {
-                    i = stream.Read(buffer, 0, bufferSize);
+                    i = await stream.ReadAsync(buffer, 0, bufferSize);
                 }
                 catch (IOException)
                 {
                     continue;
                 }
                 catch (ObjectDisposedException)
+                {
+                    break;
+                } catch(Exception)
                 {
                     break;
                 }
@@ -223,27 +207,19 @@ namespace Layer4Stack.Services
                 // received data
                 var receivedMessages = client.DataProcessor.ProcessReceivedRawData(buffer, i);
  
-                
                 // message received
                 if(receivedMessages != null && receivedMessages.Any())
                 {
-                    #pragma warning disable
-                    receivedMessages.ToList().ForEach(msg => Task.Run(async () =>
-                    {
-                        DataReceived(msg, client.Id);
-                    }));
-                    #pragma warning restore
+                    receivedMessages.ToList().ForEach(msg => DataReceived(msg, client.Info.Id));
                 }
-
             }
 
             // Close connection.
             client.Client.Close();
+            client.Client = null;
 
             // trigger diconnected event
-            Task.Run(() => {
-                RaiseClientDisconnectedEvent(client);
-            });
+            RaiseClientDisconnectedEvent(client.Info);
 
         }
 
@@ -252,14 +228,14 @@ namespace Layer4Stack.Services
         /// </summary>
         /// <param name="msg"></param>
         /// <param name="clientId"></param>
-        private void DataReceived(byte[] msg, string clientId)
+        private async Task DataReceived(byte[] msg, string clientId)
         {
 
             //  create message model 
             DataContainer model = new DataContainer { ClientId = clientId, Payload = msg, Time = DateTime.Now };
 
             // trigger event
-            RaiseMsgReceivedEvent(model);
+            await RaiseMsgReceivedEvent(model);
 
         }
 

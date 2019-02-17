@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace Layer4Stack.DataProcessors
 {
@@ -12,6 +13,16 @@ namespace Layer4Stack.DataProcessors
     public class MessageDataProcessor : IDataProcessor
     {
 
+        /// <summary>
+        /// Create ISO 8583 data processor
+        /// </summary>
+        /// <param name="logger"></param>
+        /// <param name="idGetFunc"></param>
+        /// <returns></returns>
+        public static MessageDataProcessor CreateIso8583Processor(ILogger<MessageDataProcessor> logger, int maxLength, Func<byte[],byte[]> idGetFunc = null) =>
+            new MessageDataProcessor(
+                new MessageDataProcessorConfig(maxLength, new byte[1] {3}, true, Encoding.ASCII.GetBytes("ISO"), idGetFunc), logger);
+ 
         /// <summary>
         /// Configuration
         /// </summary>
@@ -169,6 +180,8 @@ namespace Layer4Stack.DataProcessors
                 msgsEndIndexesByHeader = ixs.ToArray();
             }
 
+            // todo: bug when iso header contains terminator (due to length), example: terminator 3 and length 3
+
             // if header and terminator determinations are enabled, both must provide the same results
             if(msgsEndIndexesByHeader != null && msgsEndIndexesByTerminator != null && !msgsEndIndexesByHeader.SequenceEqual(msgsEndIndexesByTerminator))
             {
@@ -195,6 +208,14 @@ namespace Layer4Stack.DataProcessors
             // return recieved messages
             return messages;
         }
- 
+
+        /// <summary>
+        /// Reset processor
+        /// </summary>
+        public void Reset()
+        {
+            _bufferLength = 0;
+            _synchronized = true;
+        }
     }
 }

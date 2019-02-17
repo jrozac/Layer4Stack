@@ -12,22 +12,22 @@ namespace Layer4Stack.Models
         /// <summary>
         /// Message payload 
         /// </summary>
-        public byte[] Payload { get; set; }
+        public byte[] Payload { get; internal set; }
 
         /// <summary>
         /// Raw paylod (includes header, footer, etc - depending on data processor)
         /// </summary>
-        public byte[] RawPayload { get; set; }
+        public byte[] RawPayload { get; internal set; }
 
         /// <summary>
         /// Message received/sent
         /// </summary>
-        public DateTime Time { get; set; }
+        public DateTime Time { get; internal set; }
 
         /// <summary>
         /// Client Id
         /// </summary>
-        public string ClientId { get; set; }
+        public string ClientId { get; internal set; }
 
     }
 }

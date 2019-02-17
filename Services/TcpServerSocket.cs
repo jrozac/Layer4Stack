@@ -2,6 +2,7 @@
 using Layer4Stack.Models;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -18,123 +19,101 @@ namespace Layer4Stack.Services
     internal class TcpServerSocket : TcpSocketBase<ServerConfig>
     {
 
-        /// <summary>
-        /// Constructor
-        /// </summary>
-        /// <param name="createDataProcessorFunc"></param>
-        /// <param name="loggerFactory"></param>
-        public TcpServerSocket(Func<IDataProcessor> createDataProcessorFunc, ServerConfig serverConfig, 
-            ILoggerFactory loggerFactory) : base(createDataProcessorFunc, loggerFactory)
-        {
-            Config = serverConfig;
-        }
-
+        #region vars
 
         /// <summary>
-        /// Global cancellation token source
+        /// Locker
         /// </summary>
-        private CancellationTokenSource _globalCancellationTokenSource;
-
+        private readonly object _locker = new object();
 
         /// <summary>
         /// Contains connected clients
         /// </summary>
-        private Dictionary<string, TcpClientInfo> _clientRepo = new Dictionary<string, TcpClientInfo>();
-        private ServerConfig serverConfig;
+        private ConcurrentDictionary<string, TcpClientInfo> _clientRepo = new ConcurrentDictionary<string, TcpClientInfo>();
 
+        /// <summary>
+        /// Global cancellation token source
+        /// </summary>
+        private CancellationTokenSource _serverCancellationTokenSource;
 
         /// <summary>
         /// Tcp listener 
         /// </summary>
         private TcpListener _server { get; set; }
 
+        #endregion
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="createDataProcessorFunc"></param>
+        /// <param name="loggerFactory"></param>
+        public TcpServerSocket(Func<IDataProcessor> createDataProcessorFunc, ServerConfig serverConfig, 
+            ILoggerFactory loggerFactory) : base(serverConfig, createDataProcessorFunc, loggerFactory)
+        {
+        }
+
+        #region events
 
         /// <summary>
         /// Server start failure event
         /// </summary>
         public event EventHandler ServerStartFailureEvent;
 
-
         /// <summary>
         /// Server start failure event
         /// </summary>
         public event EventHandler ServerStartedEvent;
-
 
         /// <summary>
         /// Server stopped event
         /// </summary>
         public event EventHandler ServerStoppedEvent;
 
-
         /// <summary>
         /// Raises server start failure
         /// </summary>
         /// <param name="model"></param>
-        protected void RaiseServerStartFailureEvent()
+        private async Task<bool> RaiseServerStartFailureEvent()
         {
-            Logger.LogDebug("Server failed to start on port {port}.", Config.Port);
+            _logger.LogDebug("Server failed to start on port {port}.", _config.Port);
             ServerStartFailureEvent?.Invoke(this, null);
+            return await Task.FromResult(true);
         }
-
 
         /// <summary>
         /// Raises server started
         /// </summary>
         /// <param name="model"></param>
-        protected void RaiseServerStartedEvent()
+        private async Task<bool> RaiseServerStartedEvent()
         {
-            Logger.LogDebug("Server started on port {port}.", Config.Port);
+            _logger.LogDebug("Server started on port {port}.", _config.Port);
             ServerStartedEvent?.Invoke(this, null);
+            return await Task.FromResult(true);
         }
-
 
         /// <summary>
         /// Raises server stopped
         /// </summary>
         /// <param name="model"></param>
-        protected void RaiseServerStoppedEvent()
+        private async Task<bool> RaiseServerStoppedEvent()
         {
-            Logger.LogDebug("Server stopped on port {port}.", Config.Port);
+            _logger.LogDebug("Server stopped on port {port}.", _config.Port);
             ServerStoppedEvent?.Invoke(this, null);
+            return await Task.FromResult(true);
         }
 
-
-        /// <summary>
-        /// Stops the server
-        /// </summary>
-        public void ServerStop()
-        {
-            if (_server != null)
-            {
-
-                // disconnect existing clients
-                if (_clientRepo != null)
-                {
-                    foreach(var client in _clientRepo.ToList())
-                    {
-                        client.Value.Client.Close();
-                    }
-                    _clientRepo = null;
-                }
-
-                // cancell all client handlers (for sure)
-                _globalCancellationTokenSource.Cancel();
-
-                // stop server
-                _server.Stop();
-                _server = null;
-            }
-        }
-
+        #endregion
 
         /// <summary>
         /// Server started status
         /// </summary>
-        public bool Started { get {
-            return _server != null;
-        } }
+        public bool Started => _server != null;
 
+        /// <summary>
+        /// Gets clients 
+        /// </summary>
+        public IList<ClientInfo> Clients => _clientRepo?.Values?.Select(v => v.Info).ToList();
 
         /// <summary>
         /// Sends data to client
@@ -142,7 +121,7 @@ namespace Layer4Stack.Services
         /// <param name="clientId"></param>
         /// <param name="data"></param>
         /// <returns></returns>
-        public bool SendMessageToClient(string clientId, byte[] data)
+        public async Task<bool> SendMessageToClient(string clientId, byte[] data)
         {
             TcpClientInfo client = GetClientFromRepository(clientId);
             if(client != null)
@@ -153,24 +132,23 @@ namespace Layer4Stack.Services
                     Payload = data,
                     Time = DateTime.Now
                 };
-                return SendMessage(client, message);
+                return await SendMessage(client, message);
             }
 
             return false;
         }
-
 
         /// <summary>
         /// Send a message to all clients
         /// </summary>
         /// <param name="data"></param>
         /// <returns></returns>
-        public int SendToAll(byte[] data) {
+        public async Task<int> SendToAll(byte[] data) {
 
             int count = 0;
             foreach(string id in _clientRepo.Keys.ToList())
             {
-                if(SendMessageToClient(id, data))
+                if(await SendMessageToClient(id, data))
                 {
                     count++;
                 }
@@ -178,7 +156,6 @@ namespace Layer4Stack.Services
 
             return count;
         }
-
 
         /// <summary>
         /// Disconnects a client
@@ -196,120 +173,160 @@ namespace Layer4Stack.Services
 
             return false;
         }
- 
+
+        /// <summary>
+        /// Stops the server
+        /// </summary>
+        public void ServerStop()
+        {
+            // fire servers stop
+            _serverCancellationTokenSource?.Cancel();
+        }
 
         /// <summary>
         /// Tcp server start task
         /// </summary>
         /// <param name="cts"></param>
         /// <returns></returns>
-        public async Task<bool> ServerStart(CancellationTokenSource cts)
+        public async Task<bool> ServerStart()
         {
 
-            // start server 
-            try
+            // start status 
+            bool status = false;
+
+            // try to start server 
+            lock (_locker)
             {
-                // Init TCP listener
-                _server = Config.IpAddress == null ? TcpListener.Create(Config.Port) : new TcpListener(IPAddress.Parse(Config.IpAddress), Config.Port);
 
-                // clear clients
-                _clientRepo = new Dictionary<string, TcpClientInfo>();
+                // already started 
+                if (_server != null)
+                {
+                    _logger.LogInformation("Server already started.");
+                    return true;
+                } else
+                {
 
-                // Start listening for client requests.
-                _server.Start();
+                    // Init TCP listener
+                    _server = _config.IpAddress == null ? TcpListener.Create(_config.Port) : new TcpListener(IPAddress.Parse(_config.IpAddress), _config.Port);
 
-                // keep canellation token
-                _globalCancellationTokenSource = cts;
+                    // create global cancellation token 
+                    _serverCancellationTokenSource = new CancellationTokenSource();
 
-            } catch(Exception e)
-            {
-                Logger.LogError("Server failed to start on port {port}. Exception: {exception}", Config.Port, e.Message);
+                    // clear clients
+                    _clientRepo.Clear();
 
-                // raise server failed to start
-                #pragma warning disable
-                Task.Run(() => {
-                    RaiseServerStartFailureEvent();
-                });
-                #pragma warning restore
+                    // start server 
+                    try
+                    {
+                        // Start listening for client requests.
+                        _server.Start();
 
-                // set server to null and return
-                _server = null;
-                return false;
+                        // set started 
+                        status = true;
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError("Server failed to start on port {port}. Exception: {exception}", _config.Port, e.Message);
+
+                        // cleanup
+                        _server.Stop();
+                        _server = null;
+                        _serverCancellationTokenSource?.Cancel();
+                    }
+
+                }
             }
 
+            // raise status event
+            if(status)
+            {
+                RaiseServerStartedEvent();
+            } else
+            {
+                RaiseServerStartFailureEvent();
+            }
+
+            // wait for clients (keep it run in background)
+            if(status)
+            {
+                WaitForClientsLoop();
+            }
+
+            // finished
+            return await Task.FromResult(status);
+        }
+
+        /// <summary>
+        /// Wait for clients loop
+        /// </summary>
+        /// <returns></returns>
+        private async Task WaitForClientsLoop()
+        {
+
             try
             {
-                #pragma warning disable
-                // raise server started
-                Task.Run(() => {
-                    RaiseServerStartedEvent();
-                });
-                #pragma warning restore
 
                 // Enter the listening loop.
-                while (true)
+                while (!_serverCancellationTokenSource.Token.IsCancellationRequested)
                 {
-                   
+
                     // Wait for client to connect.
                     TcpClient client = await _server.AcceptTcpClientAsync();
 
                     // set client info
                     TcpClientInfo clientModel = new TcpClientInfo
                     {
-                        Time = DateTime.Now,
-                        Port = Config.Port,
-                        IpAddress = ((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString(),
-                        Id = Guid.NewGuid().ToString(),
+                        Info = new ClientInfo
+                        {
+                            Time = DateTime.Now,
+                            Port = _config.Port,
+                            IpAddress = ((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString(),
+                            Id = Guid.NewGuid().ToString()
+                        },
                         Client = client,
-                        DataProcessor = CreateDataProcessorFunc(),
+                        DataProcessor = _createDataProcessorFunc(),
                         ClientHandlerTokenSource = new CancellationTokenSource()
                     };
 
-                    #pragma warning disable
-                    
-                    // trigger connected event
-                    Task.Run(() => {
-                        RaiseClientConnectedEvent(clientModel);
-                    });
-
-                    // Handle client as a separate task
-                    Task.Run(() => {
-                        HandleClient(clientModel, cts.Token);
-                    });
-
-                    #pragma warning restore
+                    // Handle client in background
+                    HandleClient(clientModel, _serverCancellationTokenSource.Token);
 
                 }
             }
             // socket errro
             catch (SocketException)
             {
-                Logger.LogDebug("Server stopped. SocketException exception occured.");
+                _logger.LogWarning("Server stopped. SocketException exception occured.");
             }
             // Listener was stopped.
-            catch(ObjectDisposedException)
+            catch (ObjectDisposedException)
             {
-                Logger.LogDebug("Server stopped. ObjectDisposedException exception occured.");
+                _logger.LogWarning("Server stopped. ObjectDisposedException exception occured.");
             }
             finally
             {
-                if(_server != null)
+                lock (_locker)
                 {
-                    _server.Stop();
+                    // disconnect client 
+                    _clientRepo.Values.ToList().ForEach(client =>
+                    {
+                        client.Client.Close();
+                    });
+                    _clientRepo.Clear();
+
+                    // stop server
+                    _server?.Stop();
+                    _server = null;
                 }
+
+                // log stop
+                _logger.LogInformation("Server stopped.");
             }
 
-            #pragma warning disable
             // server stopped
-            Task.Run(() => {
-                RaiseServerStoppedEvent();
-            });
-            #pragma warning restore
+            RaiseServerStoppedEvent();
 
-            // finished
-            return true;
         }
-
 
         /// <summary>
         /// Handles a connected client
@@ -317,20 +334,25 @@ namespace Layer4Stack.Services
         /// <param name="client"></param>
         /// <param name="clientInfo"></param>
         /// <param name="ct"></param>
-        private void HandleClient(TcpClientInfo client, CancellationToken ct)
+        private async Task HandleClient(TcpClientInfo client, CancellationToken ct)
         {
-  
+
+            // trigger connected event
+            RaiseClientConnectedEvent(client.Info);
+
             // add client to repository
             PutClientToRepository(client);
 
             // continuously reads data (stops here until cancelled
-            ReadData(client, new CancellationToken[] { ct, client.ClientHandlerTokenSource.Token });
+            await ReadData(client);
 
             // remove client from repository
-            RemoveClientFromRepository(client.Id);
+            RemoveClientFromRepository(client.Info.Id);
+
+            // raise clinet disconnected
+            RaiseClientDisconnectedEvent(client.Info);
 
         }
-
 
         /// <summary>
         /// Gets client from local repository
@@ -339,9 +361,10 @@ namespace Layer4Stack.Services
         /// <returns></returns>
         private TcpClientInfo GetClientFromRepository(string clientId)
         {
-            return _clientRepo.ContainsKey(clientId) ? _clientRepo[clientId] : null;
+            TcpClientInfo client = null;
+            _clientRepo.TryGetValue(clientId, out client);
+            return client;
         }
-
 
         /// <summary>
         /// Puts client to local repository.
@@ -349,12 +372,8 @@ namespace Layer4Stack.Services
         /// <param name="client"></param>
         private void PutClientToRepository(TcpClientInfo client)
         {
-            if (_clientRepo != null && !_clientRepo.ContainsKey(client.Id))
-            {
-                _clientRepo.Add(client.Id, client);
-            }
+            _clientRepo.TryAdd(client.Info.Id, client);
         }
-
 
         /// <summary>
         /// Removes client from local repository.
@@ -362,12 +381,9 @@ namespace Layer4Stack.Services
         /// <param name="clientId"></param>
         private void RemoveClientFromRepository(string clientId)
         {
-            if (_clientRepo != null && _clientRepo.ContainsKey(clientId))
-            {
-                _clientRepo.Remove(clientId);
-            }
+            TcpClientInfo client = null;
+            _clientRepo.TryRemove(clientId, out client);
         }
-
 
     }
 

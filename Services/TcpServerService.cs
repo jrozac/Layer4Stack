@@ -3,7 +3,7 @@ using Layer4Stack.Handlers.Interfaces;
 using Layer4Stack.Models;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Threading;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Layer4Stack.Services
@@ -15,46 +15,83 @@ namespace Layer4Stack.Services
     public class TcpServerService : TcpServiceBase, IServerService
     {
 
+        #region vars
+
         /// <summary>
-        /// Constructor
+        /// Locker
         /// </summary>
-        /// <param name="dataProcessor"></param>
-        public TcpServerService(IServerEventHandler eventHandler, ServerConfig serverConfig, 
-            ILoggerFactory loggerFactory, Func<IDataProcessor> createDataProcessorFunc = null) : base(loggerFactory, createDataProcessorFunc)
-        {
-            ServerConfig = serverConfig;
-            EventHandler = eventHandler;
-        }
+        private readonly object _locker = new object();
+
+        /// <summary>
+        /// Logger factory 
+        /// </summary>
+        private readonly ILoggerFactory _loggerFactory;
+
+        /// <summary>
+        /// Logger
+        /// </summary>
+        private readonly ILogger<TcpServerService> _logger;
+
+        /// <summary>
+        /// Event handler
+        /// </summary>
+        private readonly IServerEventHandler _eventHandler;
+
+        /// <summary>
+        /// Server config 
+        /// </summary>
+        private readonly ServerConfig _serverConfig;
+
+        /// <summary>
+        /// Data processor creator
+        /// </summary>
+        private readonly Func<IDataProcessor> _createDataProcessorFunc;
 
         /// <summary>
         /// Socket server
         /// </summary>
         private TcpServerSocket _socketServer;
 
+        #endregion
+
+        public TcpServerService(IServerEventHandler eventHandler, ServerConfig serverConfig,
+            ILoggerFactory loggerFactory, EnumDataProcessorType dataProcessorType, 
+            Func<byte[], byte[]> getIdFunc = null)
+        {
+            _loggerFactory = loggerFactory;
+            _logger = loggerFactory.CreateLogger<TcpServerService>();
+            _serverConfig = serverConfig;
+            _eventHandler = eventHandler;
+
+            // define data processor
+            _createDataProcessorFunc = CreateDataProcesorFunc(serverConfig, loggerFactory, dataProcessorType, getIdFunc);
+        }
 
         /// <summary>
-        /// Event handler
+        /// Constructor
         /// </summary>
-        protected IServerEventHandler EventHandler { get; set; }
+        /// <param name="dataProcessor"></param>
+        public TcpServerService(IServerEventHandler eventHandler, ServerConfig serverConfig, 
+            ILoggerFactory loggerFactory, Func<IDataProcessor> createDataProcessorFunc)
+        {
+            _loggerFactory = loggerFactory;
+            _logger = loggerFactory.CreateLogger<TcpServerService>();
+            _serverConfig = serverConfig;
+            _eventHandler = eventHandler;
 
+            // define data processor
+            _createDataProcessorFunc = createDataProcessorFunc;
+        }
 
-        /// <summary>
-        /// Server config 
-        /// </summary>
-        protected ServerConfig ServerConfig { get; set; }
-
-        
         /// <summary>
         /// Server start status
         /// </summary>
-        public bool Started
-        {
-            get
-            {
-                return _socketServer != null ? _socketServer.Started : false;
-            }
-        }
+        public bool Started => _socketServer?.Started == true;
 
+        /// <summary>
+        /// Clients 
+        /// </summary>
+        public IList<ClientInfo> Clients => _socketServer?.Clients;
 
         /// <summary>
         /// Disconnect client
@@ -63,21 +100,18 @@ namespace Layer4Stack.Services
         /// <returns></returns>
         public bool DisconnectClient(string clientId)
         {
-            return _socketServer != null ? _socketServer.DisconnectClient(clientId) : false;
+            return _socketServer?.DisconnectClient(clientId) == true;
         }
-
 
         /// <summary>
         /// Send data to all clients
         /// </summary>
         /// <param name="data"></param>
         /// <returns></returns>
-        public int SendToAll(byte[] data)
+        public async Task<int> SendToAll(byte[] data)
         {
-            return _socketServer != null ? _socketServer.SendToAll(data) : 0;
-
+            return await (_socketServer?.SendToAll(data) ?? Task.FromResult(0));
         }
-
 
         /// <summary>
         /// Send data to selected client
@@ -85,132 +119,115 @@ namespace Layer4Stack.Services
         /// <param name="clientId"></param>
         /// <param name="data"></param>
         /// <returns></returns>
-        public bool SendToClient(string clientId, byte[] data)
+        public async Task<bool> SendToClient(string clientId, byte[] data)
         {
-            return _socketServer != null ? _socketServer.SendMessageToClient(clientId, data) : false;
+            return await (_socketServer?.SendMessageToClient(clientId, data) ?? Task.FromResult(false));
         }
-
 
         /// <summary>
         /// Starts server
         /// </summary>
         /// <returns></returns>
-        public bool Start()
+        public async Task<bool> Start()
         {
-            if(_socketServer == null || !_socketServer.Started)
+            lock (_locker)
             {
-                // set cancellation token source
-                CancellationTokenSource = new CancellationTokenSource();
 
-                // init socket
-                _socketServer = new TcpServerSocket(CreateDataProcessorFunc, ServerConfig, LoggerFactory);
-
-                // bind started/failed to start to get start status feedback
-                bool startStatus = false;
-                bool startExecuted = false;
-                _socketServer.ServerStartedEvent += (sender, msg) =>
+                // do nothing if already started 
+                if (_socketServer != null)
                 {
-                    startStatus = true;
-                    startExecuted = true;
-                };
-                _socketServer.ServerStartFailureEvent += (sender, msg) =>
-                {
-                    startExecuted = true;
-                };
-
-                // bind events
-                if (EventHandler != null)
-                {
-
-                    // client connected
-                    _socketServer.ClientConnectedEvent += (sender, client) => {
-                        EventHandler.HandleClientConnected(this, client);
-                    };
-
-                    // client disconnected
-                    _socketServer.ClientDisconnectedEvent += (sender, client) =>
-                    {
-                        EventHandler.HandleClientDisconnected(this, client);
-                    };
-
-                    // server started
-                    _socketServer.ServerStartedEvent += (sender, msg) =>
-                    {
-                        EventHandler.HandleServerStarted(this, ServerConfig);
-                    };
-
-                    // server stopped
-                    _socketServer.ServerStoppedEvent += (sender, msg) =>
-                    {
-                        EventHandler.HandleServerStopped(this, ServerConfig);
-                    };
-
-                    // server failed to start
-                    _socketServer.ServerStartFailureEvent += (sender, msg) =>
-                    {
-                        EventHandler.HandleServerStartFailure(this, ServerConfig);
-                    };
-
-                    // message received
-                    _socketServer.MsgReceivedEvent += (sender, msg) =>
-                    {
-                        EventHandler.HandleReceivedData(this, msg);
-                    };
-
-                    // message sent
-                    _socketServer.MsgSentEvent += (sender, msg) =>
-                    {
-                        EventHandler.HandleSentData(this, msg);
-                    };
-
+                    _logger.LogInformation("Server already started.");
+                    return true;
                 }
-
-                // try to start the server
-                #pragma warning disable
-                // start on socket
-                Task.Run(() => {
-                    _socketServer.ServerStart(CancellationTokenSource);
-                });
-                #pragma warning restore
-
-                // wait for start execution to complete 
-                Task.Run(() => { while (!startExecuted) ; }).Wait();
-
-                // return start status 
-                return startStatus;
+                else
+                {
+                    // init socket
+                    _socketServer = new TcpServerSocket(_createDataProcessorFunc, _serverConfig, _loggerFactory);
+                }
 
             }
 
-            // not started 
-            return false;
+            // bind events
+            if (_eventHandler != null)
+            {
 
+                // client connected
+                _socketServer.ClientConnectedEvent += (sender, client) =>
+                {
+                    _eventHandler.HandleClientConnected(this, client);
+                };
+
+                // client disconnected
+                _socketServer.ClientDisconnectedEvent += (sender, client) =>
+                {
+                    _eventHandler.HandleClientDisconnected(this, client);
+                };
+
+                // server started
+                _socketServer.ServerStartedEvent += (sender, msg) =>
+                {
+                    _eventHandler.HandleServerStarted(this, _serverConfig);
+                };
+
+                // server stopped
+                _socketServer.ServerStoppedEvent += (sender, msg) =>
+                {
+                    _eventHandler.HandleServerStopped(this, _serverConfig);
+                };
+
+                // server failed to start
+                _socketServer.ServerStartFailureEvent += (sender, msg) =>
+                {
+                    _eventHandler.HandleServerStartFailure(this, _serverConfig);
+                };
+
+                // message received
+                _socketServer.MsgReceivedEvent += (sender, msg) =>
+                {
+                    _eventHandler.HandleReceivedData(this, msg);
+                };
+
+                // message sent
+                _socketServer.MsgSentEvent += (sender, msg) =>
+                {
+                    _eventHandler.HandleSentData(this, msg);
+                };
+
+            }
+
+            // start server 
+            bool status = await _socketServer.ServerStart();
+
+            // clean up if not started
+            if(!status)
+            {
+                Stop();
+            }
+
+            // return 
+            return status;
+ 
         }
-
 
         /// <summary>
         /// Stops server
         /// </summary>
         /// <returns></returns>
-        public bool Stop()
+        public void Stop()
         {
-            if(_socketServer != null)
+            lock(_locker)
             {
-                bool started = _socketServer.Started;
-                _socketServer.ServerStop();
+                _socketServer?.ServerStop();
                 _socketServer = null;
-                return started;
             }
-
-            return false;
         }
 
         /// <summary>
         /// Dispose service
         /// </summary>
-        public new void Dispose()
+        public void Dispose()
         {
             Stop();
-            base.Dispose();
         }
 
     }

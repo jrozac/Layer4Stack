@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 namespace Layer4Stack.Services
 {
@@ -16,42 +17,37 @@ namespace Layer4Stack.Services
         /// <returns></returns>
         bool DisconnectClient(string clientId);
 
-
         /// <summary>
         /// Send data to client 
         /// </summary>
         /// <param name="clientId"></param>
         /// <param name="data"></param>
         /// <returns></returns>
-        bool SendToClient(string clientId, byte[] data);
-
+        Task<bool> SendToClient(string clientId, byte[] data);
 
         /// <summary>
         /// Start status 
         /// </summary>
         bool Started { get; }
 
-
         /// <summary>
         /// Start server
         /// </summary>
         /// <returns></returns>
-        bool Start();
-
+        Task<bool> Start();
 
         /// <summary>
         /// Stop server
         /// </summary>
         /// <returns></returns>
-        bool Stop();
-
+        void Stop();
 
         /// <summary>
         /// Send data to all client
         /// </summary>
         /// <param name="data"></param>
         /// <returns></returns>
-        int SendToAll(byte[] data);
+        Task<int> SendToAll(byte[] data);
 
     }
 }

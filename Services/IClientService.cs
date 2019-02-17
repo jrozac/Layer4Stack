@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 namespace Layer4Stack.Services
 {
@@ -12,21 +13,19 @@ namespace Layer4Stack.Services
         /// <summary>
         /// Connect to server
         /// </summary>
-        void Connect();
-
+        Task<bool> Connect();
 
         /// <summary>
         /// Disconnects from server
         /// </summary>
         void Disconnect();
 
-
         /// <summary>
         /// Send data to server 
         /// </summary>
         /// <param name="data"></param>
         /// <returns></returns>
-        bool Send(byte[] data);
+        Task<bool> Send(byte[] data);
 
         /// <summary>
         /// Remote procedure call
@@ -34,7 +33,7 @@ namespace Layer4Stack.Services
         /// <param name="req"></param>
         /// <param name="timeout"></param>
         /// <returns></returns>
-        byte[] Rpc(byte[] req, int timeout);
+        Task<byte[]> Rpc(byte[] req, int timeout);
 
         /// <summary>
         /// Connected status

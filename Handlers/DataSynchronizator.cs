@@ -1,7 +1,8 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Concurrent;
-using System.Linq;
-using System.Threading;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Layer4Stack.Handlers
 {
@@ -13,19 +14,40 @@ namespace Layer4Stack.Handlers
     {
 
         /// <summary>
+        /// Logger
+        /// </summary>
+        private readonly ILogger<DataSynchronizator> _logger;
+
+        /// <summary>
+        /// Constructor with logger
+        /// </summary>
+        /// <param name="logger"></param>
+        public DataSynchronizator(ILogger<DataSynchronizator> logger)
+        {
+            _logger = logger;
+        }
+
+        /// <summary>
         /// Data item
         /// </summary>
         private class DataItem
         {
             public byte[] Id { get; set; }
             public byte[] Payload { get; set; }
-            public ManualResetEvent ResetEvent { get; set; }
+            public TaskCompletionSource<byte[]> ResetEvent { get; set; }
+            public bool Replaced { get; set; }
         }
 
         /// <summary>
         /// Data items
         /// </summary>
-        private ConcurrentDictionary<byte[], DataItem> _items = new ConcurrentDictionary<byte[], DataItem>();
+        private ConcurrentDictionary<string, DataItem> _items = new ConcurrentDictionary<string, DataItem>();
+
+        /// <summary>
+        /// Active count 
+        /// </summary>
+        /// <returns></returns>
+        public int ActiveCount() => _items.Count;
 
         /// <summary>
         /// Action execute
@@ -34,25 +56,37 @@ namespace Layer4Stack.Handlers
         /// <param name="timeoutMs"></param>
         /// <param name="actionDelegate"></param>
         /// <returns></returns>
-        public byte[] ExecuteAction(byte[] id, int timeoutMs, Func<bool> actionDelegate)
+        public async Task<byte[]> ExecuteAction(byte[] id, int timeoutMs, Func<bool> actionDelegate)
         {
-
-            // set message for send
-            var ev = new ManualResetEvent(false);
-            bool status = _items.TryAdd(id, new DataItem
+            // try adding new item 
+            var ids = GetIds(id);
+            var item = new DataItem
             {
                 Id = id,
-                ResetEvent = ev
-            });
+                ResetEvent = new TaskCompletionSource<byte[]>()
+            };
+            bool status = _items.TryAdd(ids, item);
 
+            // double key 
+            if(!status)
+            {
+                _logger.LogWarning("Double id {id} detected.", GetIds(id));
+                return null;
+            }
+            
             // declare response 
             byte[] rsp = null;
 
             // send request and wait for response 
             try
             {
-                bool sentStatus = actionDelegate();
-                ev.WaitOne(timeoutMs);
+                var delegateStatus = actionDelegate();
+                if (!delegateStatus)
+                {
+                    _logger.LogError("Failed to execute action.");
+                    return null;
+                }
+                await Wait(item,timeoutMs);
             }
             catch (Exception e)
             {
@@ -61,16 +95,10 @@ namespace Layer4Stack.Handlers
             finally
             {
                 DataItem rspItem;
-                if (_items.TryRemove(id, out rspItem))
+                if (_items.TryRemove(GetIds(id), out rspItem))
                 {
                     rsp = rspItem.Payload;
-                    try
-                    {
-                        rspItem.ResetEvent?.Dispose();
-                    }
-                    catch (Exception e) { }
                 }
-
             }
 
             // return response
@@ -86,12 +114,13 @@ namespace Layer4Stack.Handlers
         public bool NotifyResult(byte[] id, byte[] payload)
         {
             DataItem rspItem;
-            if (_items.TryGetValue(id, out rspItem))
+            var ids = GetIds(id);
+            if (_items.TryGetValue(ids, out rspItem))
             {
                 rspItem.Payload = payload;
                 try
                 {
-                    rspItem.ResetEvent?.Set();
+                    rspItem.ResetEvent?.TrySetResult(payload);
                 }
                 catch (Exception e) { }
                 return true;
@@ -100,11 +129,33 @@ namespace Layer4Stack.Handlers
         }
 
         /// <summary>
+        /// Wait for response or timeout
+        /// </summary>
+        /// <param name="item"></param>
+        /// <param name="timeout"></param>
+        private async Task Wait(DataItem item, int timeout)
+        {
+            await Task.WhenAny(item.ResetEvent.Task, Task.Delay(timeout));
+        }
+
+        /// <summary>
         /// Dispose
         /// </summary>
         public void Dispose()
         {
-            _items.Where(d => d.Value.ResetEvent != null).Select(d => d.Value.ResetEvent).ToList().ForEach(e => e.Dispose());
+            _items = null;
         }
+
+        public void Reset()
+        {
+
+        }
+
+        /// <summary>
+        /// Convert byte id to string id. It makes it possible to be matched in a dictionary.
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        private string GetIds(byte[] id) => Encoding.ASCII.GetString(id);
     }
 }

@@ -1,67 +1,47 @@
 ﻿using Layer4Stack.DataProcessors;
-using Layer4Stack.Handlers;
+using Layer4Stack.Models;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Threading;
 
 namespace Layer4Stack.Services
 {
 
     /// <summary>
-    /// Tcp Client service base
+    /// Service base
     /// </summary>
     public abstract class TcpServiceBase
     {
 
         /// <summary>
-        /// Logger factory 
+        /// Create data processor function
         /// </summary>
-        protected ILoggerFactory LoggerFactory;
-
-        /// <summary>
-        /// Logger
-        /// </summary>
-        protected readonly ILogger Logger;
-
-        /// <summary>
-        /// Data sync
-        /// </summary>
-        protected readonly DataSynchronizator DataSynchronizator;
-
-        /// <summary>
-        /// Default constructor
-        /// </summary>
-        /// <param name="dataProcessor"></param>
-        protected TcpServiceBase(ILoggerFactory loggerFactory, Func<IDataProcessor> createDataProcessorFunc = null)
+        /// <typeparam name="TConfig"></typeparam>
+        /// <param name="config"></param>
+        /// <param name="loggerFactory"></param>
+        /// <param name="dataProcessorType"></param>
+        /// <param name="getIdFunc"></param>
+        /// <returns></returns>
+        public Func<IDataProcessor> CreateDataProcesorFunc<TConfig>(TConfig config, ILoggerFactory loggerFactory,
+                EnumDataProcessorType dataProcessorType, Func<byte[], byte[]> getIdFunc = null)
+            where TConfig : ConfigBase
         {
-            LoggerFactory = loggerFactory;
-            Logger = loggerFactory.CreateLogger(GetType());
-            CreateDataProcessorFunc = createDataProcessorFunc ?? 
-                new Func<IDataProcessor>(() => new MessageDataProcessor(MessageDataProcessorConfig.Default(), LoggerFactory.CreateLogger<MessageDataProcessor>()));
-            DataSynchronizator = new DataSynchronizator();
+
+            // set data processor creator
+            switch (dataProcessorType)
+            {
+                case EnumDataProcessorType.Hsm:
+                    return new Func<IDataProcessor>(() => SimpleMessageDataProcessor.CreateHsmProcessor(
+                        loggerFactory.CreateLogger<SimpleMessageDataProcessor>(),
+                        config.SocketBufferSize * 2));
+                case EnumDataProcessorType.Iso8583:
+                    return new Func<IDataProcessor>(() => MessageDataProcessor.CreateIso8583Processor(
+                        loggerFactory.CreateLogger<MessageDataProcessor>(),
+                        config.SocketBufferSize * 2, getIdFunc));
+            }
+
+            // nothing done 
+            return null;
+
         }
-
-        /// <summary>
-        /// Data processor
-        /// </summary>
-        protected IDataProcessor DataProcessor { get; private set; }
-
-        /// <summary>
-        /// Data processor creator
-        /// </summary>
-        protected Func<IDataProcessor> CreateDataProcessorFunc { get; private set; }
-
-        /// <summary>
-        /// Global cancellation token source
-        /// </summary>
-        protected CancellationTokenSource CancellationTokenSource { get; set; }
-
-        /// <summary>
-        /// Dispose
-        /// </summary>
-        public void Dispose()
-        {
-            DataSynchronizator.Dispose();
-        }
-    }
+    } 
 }

@@ -15,18 +15,42 @@ namespace Layer4Stack.Services
     public class TcpClientService : TcpServiceBase, IClientService
     {
 
+        #region vars
+
         /// <summary>
-        /// Constructor
+        /// Logger factory 
         /// </summary>
-        /// <param name="dataProcessor"></param>
-        public TcpClientService(IClientEventHandler eventHandler, 
-                ClientConfig clientConfig, ILoggerFactory loggerFactory, 
-                Func<IDataProcessor> createDataProcessorFunc = null) 
-            : base(loggerFactory, createDataProcessorFunc)
-        {
-            ClientConfig = clientConfig;
-            EventHandler = eventHandler;
-        }
+        protected ILoggerFactory _loggerFactory;
+
+        /// <summary>
+        /// Logger
+        /// </summary>
+        protected readonly ILogger<TcpClientService> _logger;
+
+        /// <summary>
+        /// Data sync
+        /// </summary>
+        private readonly DataSynchronizator _dataSynchronizator;
+
+        /// <summary>
+        /// Client config
+        /// </summary>
+        private readonly ClientConfig _clientConfig;
+
+        /// <summary>
+        /// Event handler
+        /// </summary>
+        private readonly IClientEventHandler _eventHandler;
+
+        /// <summary>
+        /// Data processor
+        /// </summary>
+        private readonly IDataProcessor _dataProcessor;
+
+        /// <summary>
+        /// Data processor creator
+        /// </summary>
+        protected readonly Func<IDataProcessor> _createDataProcessorFunc;
 
         /// <summary>
         /// Socket client
@@ -34,23 +58,68 @@ namespace Layer4Stack.Services
         private TcpClientSocket _socketClient;
 
         /// <summary>
-        /// Client config
+        /// Allow auto reconnect
         /// </summary>
-        protected ClientConfig ClientConfig { get; set; }
+        private bool _allowAutoReconnect = false;
 
         /// <summary>
-        /// Message handler
+        /// Timer for autoconnect
         /// </summary>
-        protected IClientEventHandler EventHandler { get; set; }
+        private Timer _timer;
 
+        #endregion
+
+        /// <summary>
+        /// Construstor with 
+        /// </summary>
+        /// <param name="eventHandler"></param>
+        /// <param name="clientConfig"></param>
+        /// <param name="loggerFactory"></param>
+        /// <param name="dataProcessorType"></param>
+        public TcpClientService(IClientEventHandler eventHandler,
+                ClientConfig clientConfig, ILoggerFactory loggerFactory,
+                EnumDataProcessorType dataProcessorType, Func<byte[],byte[]> getIdFunc = null)
+        {
+
+            _createDataProcessorFunc = CreateDataProcesorFunc(clientConfig, loggerFactory, dataProcessorType, getIdFunc);
+            _loggerFactory = loggerFactory;
+            _logger = loggerFactory.CreateLogger<TcpClientService>();
+            _clientConfig = clientConfig;
+            _eventHandler = eventHandler;
+            _dataSynchronizator = new DataSynchronizator(loggerFactory.CreateLogger<DataSynchronizator>());
+            _dataProcessor = _createDataProcessorFunc();
+
+            ManageAutoConnect();
+        }
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="dataProcessor"></param>
+        public TcpClientService(IClientEventHandler eventHandler, 
+                ClientConfig clientConfig, ILoggerFactory loggerFactory, 
+                Func<IDataProcessor> createDataProcessorFunc) 
+        {
+            _loggerFactory = loggerFactory;
+            _logger = loggerFactory.CreateLogger<TcpClientService>();
+            _clientConfig = clientConfig;
+            _eventHandler = eventHandler;
+            _dataSynchronizator = new DataSynchronizator(loggerFactory.CreateLogger<DataSynchronizator>());
+            _dataProcessor = createDataProcessorFunc();
+            _createDataProcessorFunc = createDataProcessorFunc;
+
+            ManageAutoConnect();
+        }
+ 
         /// <summary>
         /// Sends data
         /// </summary>
         /// <param name="msg"></param>
         /// <returns></returns>
-        public bool Send(byte[] msg)
+        public async Task<bool> Send(byte[] msg)
         {
-            return _socketClient != null ? _socketClient.Send(msg) : false;
+
+            return await(_socketClient?.Send(msg) ?? Task.FromResult(false));
         }
 
         /// <summary>
@@ -59,88 +128,105 @@ namespace Layer4Stack.Services
         /// <param name="req"></param>
         /// <param name="timeout"></param>
         /// <returns></returns>
-        public byte[] Rpc(byte[] req, int timeout)
+        public async Task<byte[]> Rpc(byte[] req, int timeout)
         {
             // get identifier
-            var id = DataProcessor.GetIdentifier(req);
+            var id = _dataProcessor.GetIdentifier(req);
             if(id == null)
             {
-                Logger.LogError("Identifier not found.");
+                _logger.LogError("Identifier not found.");
                 return null;
             }
 
-            // send 
-            var rsp = DataSynchronizator.ExecuteAction(id, timeout, () => {
-                bool status = _socketClient != null ? _socketClient.Send(req) : false;
+            // send
+            return await _dataSynchronizator.ExecuteAction(id, timeout, () =>
+            {
+                bool status = _socketClient?.Send(req).GetAwaiter().GetResult() ?? false;
                 if (!status)
                 {
-                    Logger.LogError("Failed to sent message.");
+                    _logger.LogError("Failed to sent message.");
                 }
                 return status;
             });
-
-            // return response
-            return rsp;
         }
 
         /// <summary>
         /// Connect to server
         /// </summary>
-        public void Connect()
+        public async Task<bool> Connect()
         {
 
-            // set cancellation token store
-            CancellationTokenSource = new CancellationTokenSource();
+            // create new client
+            var socket = new TcpClientSocket(_createDataProcessorFunc, _clientConfig, _loggerFactory);
+            socket.ClientDisconnectedEvent += (s, cl) => {
+                Interlocked.Exchange(ref _socketClient, null)?.Disconnect();
+            };
 
-            // setup socket server
-            _socketClient = new TcpClientSocket(CreateDataProcessorFunc, ClientConfig, LoggerFactory);
+            // replace with previous client 
+            Interlocked.Exchange(ref _socketClient, socket)?.Disconnect();
+ 
+            // reset utils
+            _dataSynchronizator.Reset();
+            _dataProcessor.Reset();
+            _allowAutoReconnect = true;
+
+            // add support for rpc
+            socket.MsgReceivedEvent += (sender, msg) =>
+            {
+                var id = _dataProcessor.GetIdentifier(msg.Payload);
+                if (id != null)
+                {
+                    _dataSynchronizator.NotifyResult(id, msg.Payload);
+                }
+                _eventHandler.HandleReceivedData(this, msg);
+            };
 
             // bind event handling 
-            if(EventHandler != null) { 
+            if (_eventHandler != null) {
 
                 // client connected
-                _socketClient.ClientConnectedEvent += (sender, client) => {
-                    EventHandler.HandleClientConnected(this, client);
+                socket.ClientConnectedEvent += (sender, client) => {
+                    _eventHandler.HandleClientConnected(this, client);
                 };
 
                 // client disconnected
-                _socketClient.ClientDisconnectedEvent += (sender, client) =>
+                socket.ClientDisconnectedEvent += (sender, client) =>
                 {
-                    EventHandler.HandleClientDisconnected(this, client);
+                    _eventHandler.HandleClientDisconnected(this, client);
                 };
 
                 // client connect failure
-                _socketClient.ClientConnectionFailureEvent += (sender, msg) =>
+                socket.ClientConnectionFailureEvent += (sender, msg) =>
                 {
-                    EventHandler.HandleClientConnectionFailure(this, msg);
+                    _eventHandler.HandleClientConnectionFailure(this, msg);
                 };
 
                 // message received
-                _socketClient.MsgReceivedEvent += (sender, msg) =>
+                socket.MsgReceivedEvent += (sender, msg) =>
                 {
-                    var id = DataProcessor.GetIdentifier(msg.Payload);
-                    if(id != null)
-                    {
-                        DataSynchronizator.NotifyResult(id, msg.Payload);
-                    }
-                    EventHandler.HandleReceivedData(this, msg);
+                    _eventHandler.HandleReceivedData(this, msg);
                 };
 
                 // message sent
-                _socketClient.MsgSentEvent += (sender, msg) =>
+                socket.MsgSentEvent += (sender, msg) =>
                 {
-                    EventHandler.HandleSentData(this, msg);
+                    _eventHandler.HandleSentData(this, msg);
                 };
 
             }
 
             // connect
-            #pragma warning disable
-            Task.Run(() => {
-                _socketClient.Connect(CancellationTokenSource.Token);
-            });
-            #pragma warning restore 
+            bool status =  await socket.Connect();
 
+            // cleanup on failure
+            if(!status)
+            {
+                Interlocked.Exchange(ref _socketClient, null)?.Disconnect();
+            }
+
+            // return status 
+            return status;
+            
         }
 
         /// <summary>
@@ -148,33 +234,42 @@ namespace Layer4Stack.Services
         /// </summary>
         public void Disconnect()
         {
-
-            if (CancellationTokenSource != null)
-            {
-                CancellationTokenSource.Cancel();
-            }
-            if(_socketClient != null)
-            {
-                _socketClient.Disconnect();
-            }
-
+            _allowAutoReconnect = false;
+            var prevSocket = Interlocked.Exchange(ref _socketClient, null);
+            prevSocket?.Disconnect();
+ 
         }
 
         /// <summary>
         /// Client connected status
         /// </summary>
-        public bool Connected { get {
-
-            return _socketClient != null ? _socketClient.Conneted : false;
-        } }
+        public bool Connected => _socketClient?.Conneted == true;
 
         /// <summary>
         /// Dispose service
         /// </summary>
-        public new void Dispose()
+        public void Dispose()
         {
             Disconnect();
-            base.Dispose();
+            _dataSynchronizator.Dispose();
+            _timer.Dispose();
+        }
+
+        /// <summary>
+        /// Manage autoconnect 
+        /// </summary>
+        private void ManageAutoConnect()
+        {
+            bool active = false;
+            if(_clientConfig.EnableAutoConnect)
+            {
+                _timer = new Timer((o) => {
+                    if (!active && _allowAutoReconnect && _socketClient == null)
+                    {
+                        Connect().GetAwaiter().GetResult();
+                    }
+                }, null, TimeSpan.FromSeconds(0), TimeSpan.FromSeconds(5));
+            }
         }
     }
 }

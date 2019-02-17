@@ -30,6 +30,10 @@ namespace Layer4Stack.DataProcessors
         /// <returns></returns>
         byte[] GetIdentifier(byte[] msg);
 
+        /// <summary>
+        /// Resets data 
+        /// </summary>
+        void Reset();
 
     }
 }

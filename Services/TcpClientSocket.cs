@@ -3,7 +3,6 @@ using Layer4Stack.Models;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Net.Sockets;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Layer4Stack.Services
@@ -16,144 +15,133 @@ namespace Layer4Stack.Services
     {
 
         /// <summary>
-        /// Constructor
+        /// Locker
         /// </summary>
-        /// <param name="dataProcessor"></param>
-        public TcpClientSocket(Func<IDataProcessor> createDataProcessorFunc, ClientConfig clientConfig, ILoggerFactory loggerFactory) : base(createDataProcessorFunc, loggerFactory)
-        {
-            Config = clientConfig;
-        }
+        private readonly object _locker = new object();
 
         /// <summary>
         /// Client
         /// </summary>
         private TcpClientInfo _client;
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="dataProcessor"></param>
+        public TcpClientSocket(Func<IDataProcessor> createDataProcessorFunc, ClientConfig clientConfig, ILoggerFactory loggerFactory) : 
+            base(clientConfig, createDataProcessorFunc, loggerFactory)
+        {
+ 
+        }
+
+        #region Events
 
         /// <summary>
         /// Fired when client fails to connect to server
         /// </summary>
         public event EventHandler<ClientInfo> ClientConnectionFailureEvent;
 
-
         /// <summary>
         /// Raises client connection failure event
         /// </summary>
         /// <param name="model"></param>
-        protected void RaiseClientConnectionFailureEvent(ClientInfo model)
+        protected async Task<bool> RaiseClientConnectionFailureEvent(ClientInfo model)
         {
-            Logger.LogDebug("Failed to connect to {ip} on port {port}.", model.IpAddress, model.Port);
+            _logger.LogDebug("Failed to connect to {ip} on port {port}.", model.IpAddress, model.Port);
             ClientConnectionFailureEvent?.Invoke(this, model);
+            return await Task.FromResult(true);
         }
 
+        #endregion
 
         /// <summary>
         /// Connected status
         /// </summary>
-        public bool Conneted { get {
-            return _client != null && _client.Client.Connected;
-        }}
-
+        public bool Conneted => _client?.Client?.Connected == true;
 
         /// <summary>
         /// Connect to server
         /// </summary>
         /// <param name="ct"></param>
         /// <returns></returns>
-        public async Task<bool> Connect(CancellationToken ct)
+        public async Task<bool> Connect()
         {
 
-            #pragma warning disable
-
-            // connect client
-            TcpClient client = new TcpClient();
-
-            // init model info
-            TcpClientInfo clientInfo = new TcpClientInfo
+            // create client or return 
+            lock (_locker)
             {
-                Time = DateTime.Now,
-                Port = Config.Port,
-                IpAddress = Config.IpAddress,
-                Id = Guid.NewGuid().ToString(),
-                Client = client,
-                DataProcessor = CreateDataProcessorFunc()
-            };
+                if(_client != null)
+                {
+                    return true;
+                } else
+                {
+                    // init model info
+                    _client = new TcpClientInfo
+                    {
+                        Info = new ClientInfo()
+                        {
+                            Time = DateTime.Now,
+                            Port = _config.Port,
+                            IpAddress = _config.IpAddress,
+                            Id = Guid.NewGuid().ToString()
+                        },
+                        Client = new TcpClient(),
+                        DataProcessor = _createDataProcessorFunc()
+                    };
+                }
+            }
 
-
+            // connect 
             try
             {
-                await client.ConnectAsync(Config.IpAddress, Config.Port);
-            } catch(Exception e)
+                await _client.Client.ConnectAsync(_config.IpAddress, _config.Port);
+            }
+            catch (Exception e)
             {
+                _logger.LogError("Connection failed with error: {message}.", e.Message);
+
                 // client connected failed 
-                Task.Run(() => {
-                    RaiseClientConnectionFailureEvent(clientInfo);
-                });
+                RaiseClientConnectionFailureEvent(_client.Info);
+
+                // failed clean up
+                lock(_locker)
+                {
+                    _client = null;
+                }
 
                 // return false
                 return false;
             }
-             
+
             // client connected
-            Task.Run(() => {
-                RaiseClientConnectedEvent(clientInfo);
-            });
+            RaiseClientConnectedEvent(_client.Info);
 
             // handle client
-            Task.Run(() => {
-                HandleClient(clientInfo, ct);
-            });
-          
+            HandleClient();
+
             // return success
             return true;
 
-            #pragma warning restore
-
         }
-
-
-        /// <summary>
-        /// Handles a connected client
-        /// </summary>
-        /// <param name="client"></param>
-        /// <param name="ct"></param>
-        private void HandleClient(TcpClientInfo client, CancellationToken ct)
-        {
-
-            // add client to repository
-            _client = client;
-
-            // continuously reads data
-            ReadData(client, new CancellationToken[] { ct});
-
-            // remove client from repository
-            _client = null;
-
-        }
-
 
         /// <summary>
         /// Disconnects client
         /// </summary>
         public void Disconnect()
         {
-            if(_client != null)
-            {
-                _client.Client.Close();
-            }
+            _client?.Client.Close();
         }
-
 
         /// <summary>
         /// Sends a message
         /// </summary>
         /// <param name="message"></param>
         /// <returns></returns>
-        public bool Send(byte[] message)
+        public async Task<bool> Send(byte[] message)
         {
 
             // client not initialized
-            if(_client == null)
+            if (_client == null)
             {
                 return false;
             }
@@ -161,15 +149,34 @@ namespace Layer4Stack.Services
             // create model to send 
             DataContainer model = new DataContainer
             {
-                ClientId = _client.Id,
+                ClientId = _client.Info.Id,
                 Payload = message,
                 Time = DateTime.Now
             };
 
             // send
-            return SendMessage(_client, model);
+            return await SendMessage(_client, model);
         }
 
+        /// <summary>
+        /// Handles a connected client
+        /// </summary>
+        /// <param name="client"></param>
+        /// <param name="ct"></param>
+        private async Task HandleClient()
+        {
+
+            // continuously reads data
+            await ReadData(_client);
+
+            // remove client from repository
+            lock(_locker)
+            {
+                _client?.Client?.Close();
+                _client = null;
+            }
+
+        }
 
     }
 }

@@ -11,21 +11,21 @@ namespace Layer4Stack.Models
         /// <summary>
         /// Client id 
         /// </summary>
-        public string Id { get; set; }
+        public string Id { get; internal set; }
 
         /// <summary>
         /// Client/server address IP
         /// </summary>
-        public string IpAddress { get; set; }
+        public string IpAddress { get; internal set; }
 
         /// <summary>
         /// Client port 
         /// </summary>
-        public int Port { get; set; }
+        public int Port { get; internal set; }
 
         /// <summary>
         /// Connected time
         /// </summary>
-        public DateTime Time { get; set; }
+        public DateTime Time { get; internal set; }
     }
 }
