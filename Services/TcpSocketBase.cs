@@ -48,66 +48,22 @@ namespace Layer4Stack.Services
         /// <summary>
         /// Message received event.
         /// </summary>
-        public event EventHandler<DataContainer> MsgReceivedEvent;
+        public Func<DataContainer,Task> MsgReceivedAction;
 
         /// <summary>
         /// Message sent event.
         /// </summary>
-        public event EventHandler<DataContainer> MsgSentEvent;
+        public Func<DataContainer,Task> MsgSentAction;
 
         /// <summary>
         /// Client connected event
         /// </summary>
-        public event EventHandler<ClientInfo> ClientConnectedEvent;
+        public Func<ClientInfo,Task> ClientConnectedAction;
 
         /// <summary>
         /// Client disconnected event
         /// </summary>
-        public event EventHandler<ClientInfo> ClientDisconnectedEvent;
-
-        /// <summary>
-        /// Raises message received event
-        /// </summary>
-        /// <param name="model"></param>
-        protected async Task<bool> RaiseMsgReceivedEvent(DataContainer model)
-        {
-            _logger.LogDebug("Message of lenght {length} received.", model.Payload.Length);
-            MsgReceivedEvent?.Invoke(this, model);
-            return await Task.FromResult(true);
-        }
-
-        /// <summary>
-        /// Raises message received event
-        /// </summary>
-        /// <param name="model"></param>
-        protected async Task<bool> RaiseMsgSentEvent(DataContainer model)
-        {
-            _logger.LogDebug("Message of lenght {lenght} sent.", model.Payload.Length);
-            MsgSentEvent?.Invoke(this, model);
-            return await Task.FromResult(true);
-        }
-
-        /// <summary>
-        /// Raises client disconnected event
-        /// </summary>
-        /// <param name="model"></param>
-        protected async Task<bool> RaiseClientDisconnectedEvent(ClientInfo model)
-        {
-            _logger.LogInformation("Client {id} disconnected.", model.Id);
-            ClientDisconnectedEvent?.Invoke(this, model);
-            return await Task.FromResult(true);
-        }
-
-        /// <summary>
-        /// Raises client connected event
-        /// </summary>
-        /// <param name="model"></param>
-        protected async Task<bool> RaiseClientConnectedEvent(ClientInfo model)
-        {
-            _logger.LogInformation("Client {id} connected.", model.Id);
-            ClientConnectedEvent?.Invoke(this, model);
-            return await Task.FromResult(true);
-        }
+        public Func<ClientInfo,Task> ClientDisconnectedAction;
 
         #endregion
 
@@ -129,7 +85,7 @@ namespace Layer4Stack.Services
             // raise sent 
             if(status)
             {
-                RaiseMsgSentEvent(message);
+                await (MsgSentAction?.Invoke(message) ?? Task.FromResult(false));
             }
             return status;
 
@@ -230,7 +186,7 @@ namespace Layer4Stack.Services
             DataContainer model = new DataContainer { ClientId = clientId, Payload = msg, Time = DateTime.Now };
 
             // trigger event
-            await RaiseMsgReceivedEvent(model);
+            await (MsgReceivedAction?.Invoke(model) ?? Task.FromResult(false));
 
         }
 

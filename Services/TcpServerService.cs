@@ -142,47 +142,13 @@ namespace Layer4Stack.Services
             {
 
                 // client connected
-                socket.ClientConnectedEvent += (sender, client) =>
-                {
-                    _eventHandler.HandleClientConnected(this, client);
-                };
-
-                // client disconnected
-                socket.ClientDisconnectedEvent += (sender, client) =>
-                {
-                    _eventHandler.HandleClientDisconnected(this, client);
-                };
-
-                // server started
-                socket.ServerStartedEvent += (sender, msg) =>
-                {
-                    _eventHandler.HandleServerStarted(this, _serverConfig);
-                };
-
-                // server stopped
-                socket.ServerStoppedEvent += (sender, msg) =>
-                {
-                    _eventHandler.HandleServerStopped(this, _serverConfig);
-                };
-
-                // server failed to start
-                socket.ServerStartFailureEvent += (sender, msg) =>
-                {
-                    _eventHandler.HandleServerStartFailure(this, _serverConfig);
-                };
-
-                // message received
-                socket.MsgReceivedEvent += (sender, msg) =>
-                {
-                    _eventHandler.HandleReceivedData(this, msg);
-                };
-
-                // message sent
-                socket.MsgSentEvent += (sender, msg) =>
-                {
-                    _eventHandler.HandleSentData(this, msg);
-                };
-
+                socket.ClientConnectedAction = _eventHandler.HandleClientConnected;
+                socket.ClientDisconnectedAction = _eventHandler.HandleClientDisconnected;
+                socket.ServerStartedAction = _eventHandler.HandleServerStarted;
+                socket.ServerStoppedAction = _eventHandler.HandleServerStopped;
+                socket.ServerStartFailureAction = _eventHandler.HandleServerStartFailure;
+                socket.MsgReceivedAction = _eventHandler.HandleReceivedData;
+                socket.MsgSentAction = _eventHandler.HandleSentData;
             }
 
             // start server 

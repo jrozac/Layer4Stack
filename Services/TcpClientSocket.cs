@@ -3,6 +3,7 @@ using Layer4Stack.Models;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Layer4Stack.Services
@@ -13,11 +14,6 @@ namespace Layer4Stack.Services
     /// </summary>
     internal class TcpClientSocket : TcpSocketBase<ClientConfig>
     {
-
-        /// <summary>
-        /// Locker
-        /// </summary>
-        private readonly object _locker = new object();
 
         /// <summary>
         /// Client
@@ -39,18 +35,7 @@ namespace Layer4Stack.Services
         /// <summary>
         /// Fired when client fails to connect to server
         /// </summary>
-        public event EventHandler<ClientInfo> ClientConnectionFailureEvent;
-
-        /// <summary>
-        /// Raises client connection failure event
-        /// </summary>
-        /// <param name="model"></param>
-        protected async Task<bool> RaiseClientConnectionFailureEvent(ClientInfo model)
-        {
-            _logger.LogDebug("Failed to connect to {ip} on port {port}.", model.IpAddress, model.Port);
-            ClientConnectionFailureEvent?.Invoke(this, model);
-            return await Task.FromResult(true);
-        }
+        public Func<ClientInfo,Task> ClientConnectionFailureAction;
 
         #endregion
 
@@ -68,50 +53,43 @@ namespace Layer4Stack.Services
         {
 
             // create client or return 
-            lock (_locker)
+            if (_client != null)
             {
-                if(_client != null)
-                {
-                    return true;
-                } else
-                {
-                    // init model info
-                    _client = new TcpClientInfo
-                    {
-                        Info = new ClientInfo()
-                        {
-                            Time = DateTime.Now,
-                            Port = _config.Port,
-                            IpAddress = _config.IpAddress,
-                            Id = Guid.NewGuid().ToString()
-                        },
-                        Client = new TcpClient(),
-                        DataProcessor = _createDataProcessorFunc()
-                    };
-                }
+                return true;
             }
+      
+            // init model info
+            var client = new TcpClientInfo
+            {
+                Info = new ClientInfo()
+                {
+                    Time = DateTime.Now,
+                    Port = _config.Port,
+                    IpAddress = _config.IpAddress,
+                    Id = Guid.NewGuid().ToString()
+                },
+                Client = new TcpClient(),
+                DataProcessor = _createDataProcessorFunc()
+            };
 
             // connect 
             try
             {
-                await _client.Client.ConnectAsync(_config.IpAddress, _config.Port);
+                await client.Client.ConnectAsync(_config.IpAddress, _config.Port);
             }
             catch (Exception e)
             {
                 _logger.LogError("Connection failed with error: {message}.", e.Message);
 
                 // client connected failed 
-                RaiseClientConnectionFailureEvent(_client.Info);
-
-                // failed clean up
-                lock(_locker)
-                {
-                    _client = null;
-                }
+                await (ClientConnectionFailureAction?.Invoke(client.Info) ?? Task.FromResult(false));
 
                 // return false
                 return false;
             }
+
+            // set client
+            Interlocked.Exchange(ref _client, client);
 
             // handle client
             HandleClient();
@@ -164,20 +142,18 @@ namespace Layer4Stack.Services
         {
 
             // client connected
-            RaiseClientConnectedEvent(_client.Info);
+            await (ClientConnectedAction?.Invoke(_client.Info) ?? Task.FromResult(false));
 
             // continuously reads data
             await ReadData(_client);
 
             // remove client from repository
-            lock(_locker)
-            {
-                _client?.Client?.Close();
-                _client = null;
-            }
+            var client = Interlocked.Exchange(ref _client, null);
+            _client?.Client?.Close();
+            _client = null;
 
             // trigger diconnected event
-            RaiseClientDisconnectedEvent(_client.Info);
+            await (ClientDisconnectedAction?.Invoke(client?.Info) ?? Task.FromResult(false));
 
         }
 

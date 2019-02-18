@@ -63,6 +63,11 @@ namespace Layer4Stack.Services
         private bool _allowAutoReconnect = false;
 
         /// <summary>
+        /// Connecting
+        /// </summary>
+        private object _connecting = null;
+
+        /// <summary>
         /// Timer for autoconnect
         /// </summary>
         private Timer _timer;
@@ -155,12 +160,17 @@ namespace Layer4Stack.Services
         /// </summary>
         public async Task<bool> Connect()
         {
+            Interlocked.Exchange(ref _connecting, new object());
 
             // create new client
             var socket = new TcpClientSocket(_createDataProcessorFunc, _clientConfig, _loggerFactory);
-            socket.ClientDisconnectedEvent += (s, cl) => {
+            socket.ClientDisconnectedAction = new Func<ClientInfo, Task>(async (info) => {
                 Interlocked.Exchange(ref _socketClient, null)?.Disconnect();
-            };
+                if (_eventHandler != null)
+                {
+                    await _eventHandler.HandleClientDisconnected(info);
+                }
+            });
 
             // replace with previous client 
             Interlocked.Exchange(ref _socketClient, socket)?.Disconnect();
@@ -171,48 +181,23 @@ namespace Layer4Stack.Services
             _allowAutoReconnect = true;
 
             // add support for rpc
-            socket.MsgReceivedEvent += (sender, msg) =>
-            {
+            socket.MsgReceivedAction = new Func<DataContainer, Task>(async (msg) => {
                 var id = _dataProcessor.GetIdentifier(msg.Payload);
                 if (id != null)
                 {
                     _dataSynchronizator.NotifyResult(id, msg.Payload);
                 }
-                _eventHandler.HandleReceivedData(this, msg);
-            };
+                if(_eventHandler != null)
+                {
+                    await _eventHandler.HandleReceivedData(msg);
+                }
+            });
 
-            // bind event handling 
+            // bind other events
             if (_eventHandler != null) {
-
-                // client connected
-                socket.ClientConnectedEvent += (sender, client) => {
-                    _eventHandler.HandleClientConnected(this, client);
-                };
-
-                // client disconnected
-                socket.ClientDisconnectedEvent += (sender, client) =>
-                {
-                    _eventHandler.HandleClientDisconnected(this, client);
-                };
-
-                // client connect failure
-                socket.ClientConnectionFailureEvent += (sender, msg) =>
-                {
-                    _eventHandler.HandleClientConnectionFailure(this, msg);
-                };
-
-                // message received
-                socket.MsgReceivedEvent += (sender, msg) =>
-                {
-                    _eventHandler.HandleReceivedData(this, msg);
-                };
-
-                // message sent
-                socket.MsgSentEvent += (sender, msg) =>
-                {
-                    _eventHandler.HandleSentData(this, msg);
-                };
-
+                socket.ClientConnectedAction = _eventHandler.HandleClientConnected;
+                socket.ClientConnectionFailureAction = _eventHandler.HandleClientConnectionFailure;
+                socket.MsgSentAction = _eventHandler.HandleSentData;
             }
 
             // connect
@@ -225,6 +210,7 @@ namespace Layer4Stack.Services
             }
 
             // return status 
+            Interlocked.Exchange(ref _connecting, null);
             return status;
             
         }
@@ -237,7 +223,6 @@ namespace Layer4Stack.Services
             _allowAutoReconnect = false;
             var prevSocket = Interlocked.Exchange(ref _socketClient, null);
             prevSocket?.Disconnect();
- 
         }
 
         /// <summary>
@@ -260,11 +245,10 @@ namespace Layer4Stack.Services
         /// </summary>
         private void ManageAutoConnect()
         {
-            bool active = false;
             if(_clientConfig.EnableAutoConnect)
             {
                 _timer = new Timer((o) => {
-                    if (!active && _allowAutoReconnect && _socketClient == null)
+                    if (_connecting == null && _allowAutoReconnect && _socketClient == null)
                     {
                         Connect().GetAwaiter().GetResult();
                     }

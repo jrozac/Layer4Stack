@@ -113,6 +113,7 @@ namespace Layer4Stack.Handlers
         /// <param name="payload"></param>
         public bool NotifyResult(byte[] id, byte[] payload)
         {
+            bool result = false;
             DataItem rspItem;
             var ids = GetIds(id);
             if (_items.TryGetValue(ids, out rspItem))
@@ -123,9 +124,9 @@ namespace Layer4Stack.Handlers
                     rspItem.ResetEvent?.TrySetResult(payload);
                 }
                 catch (Exception e) { }
-                return true;
+                result = true;
             }
-            return false;
+            return result;
         }
 
         /// <summary>

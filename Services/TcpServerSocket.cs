@@ -48,50 +48,17 @@ namespace Layer4Stack.Services
         /// <summary>
         /// Server start failure event
         /// </summary>
-        public event EventHandler ServerStartFailureEvent;
+        public Func<ServerConfig,Task> ServerStartFailureAction;
 
         /// <summary>
         /// Server start failure event
         /// </summary>
-        public event EventHandler ServerStartedEvent;
+        public Func<ServerConfig, Task> ServerStartedAction;
 
         /// <summary>
         /// Server stopped event
         /// </summary>
-        public event EventHandler ServerStoppedEvent;
-
-        /// <summary>
-        /// Raises server start failure
-        /// </summary>
-        /// <param name="model"></param>
-        private async Task<bool> RaiseServerStartFailureEvent()
-        {
-            _logger.LogDebug("Server failed to start on port {port}.", _config.Port);
-            ServerStartFailureEvent?.Invoke(this, null);
-            return await Task.FromResult(true);
-        }
-
-        /// <summary>
-        /// Raises server started
-        /// </summary>
-        /// <param name="model"></param>
-        private async Task<bool> RaiseServerStartedEvent()
-        {
-            _logger.LogDebug("Server started on port {port}.", _config.Port);
-            ServerStartedEvent?.Invoke(this, null);
-            return await Task.FromResult(true);
-        }
-
-        /// <summary>
-        /// Raises server stopped
-        /// </summary>
-        /// <param name="model"></param>
-        private async Task<bool> RaiseServerStoppedEvent()
-        {
-            _logger.LogDebug("Server stopped on port {port}.", _config.Port);
-            ServerStoppedEvent?.Invoke(this, null);
-            return await Task.FromResult(true);
-        }
+        public Func<ServerConfig, Task> ServerStoppedAction;
 
         #endregion
 
@@ -218,10 +185,10 @@ namespace Layer4Stack.Services
             // raise status event
             if(status)
             {
-                RaiseServerStartedEvent();
+                await (ServerStartedAction?.Invoke(_config) ?? Task.FromResult(false));
             } else
             {
-                RaiseServerStartFailureEvent();
+                await (ServerStartFailureAction?.Invoke(_config) ?? Task.FromResult(false));
             }
 
             // wait for clients (keep it run in background)
@@ -308,7 +275,7 @@ namespace Layer4Stack.Services
             }
 
             // server stopped
-            RaiseServerStoppedEvent();
+            await (ServerStartedAction?.Invoke(_config) ?? Task.FromResult(false));
 
         }
 
@@ -321,7 +288,7 @@ namespace Layer4Stack.Services
         {
 
             // trigger connected event
-            RaiseClientConnectedEvent(client.Info);
+            await (ClientConnectedAction?.Invoke(client.Info) ?? Task.FromResult(false));
 
             // add client to repository
             PutClientToRepository(client);
@@ -333,7 +300,7 @@ namespace Layer4Stack.Services
             RemoveClientFromRepository(client.Info.Id);
 
             // raise clinet disconnected
-            RaiseClientDisconnectedEvent(client.Info);
+            await (ClientDisconnectedAction?.Invoke(client.Info) ?? Task.FromResult(false));
 
         }
 
