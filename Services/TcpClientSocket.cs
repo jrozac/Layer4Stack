@@ -113,9 +113,6 @@ namespace Layer4Stack.Services
                 return false;
             }
 
-            // client connected
-            RaiseClientConnectedEvent(_client.Info);
-
             // handle client
             HandleClient();
 
@@ -166,6 +163,9 @@ namespace Layer4Stack.Services
         private async Task HandleClient()
         {
 
+            // client connected
+            RaiseClientConnectedEvent(_client.Info);
+
             // continuously reads data
             await ReadData(_client);
 
@@ -175,6 +175,9 @@ namespace Layer4Stack.Services
                 _client?.Client?.Close();
                 _client = null;
             }
+
+            // trigger diconnected event
+            RaiseClientDisconnectedEvent(_client.Info);
 
         }
 

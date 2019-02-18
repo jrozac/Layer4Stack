@@ -22,24 +22,14 @@ namespace Layer4Stack.Services
         #region vars
 
         /// <summary>
-        /// Locker
-        /// </summary>
-        private readonly object _locker = new object();
-
-        /// <summary>
         /// Contains connected clients
         /// </summary>
         private ConcurrentDictionary<string, TcpClientInfo> _clientRepo = new ConcurrentDictionary<string, TcpClientInfo>();
 
         /// <summary>
-        /// Global cancellation token source
-        /// </summary>
-        private CancellationTokenSource _serverCancellationTokenSource;
-
-        /// <summary>
         /// Tcp listener 
         /// </summary>
-        private TcpListener _server { get; set; }
+        private TcpListener _server;
 
         #endregion
 
@@ -164,14 +154,9 @@ namespace Layer4Stack.Services
         /// <returns></returns>
         public bool DisconnectClient(string clientId)
         {
-            TcpClientInfo client = GetClientFromRepository(clientId);
-            if(client != null)
-            {
-                client.ClientHandlerTokenSource.Cancel();
-                return true;
-            }
-
-            return false;
+            TcpClientInfo client = RemoveClientFromRepository(clientId);
+            client?.Client.Close();
+            return client != null;
         }
 
         /// <summary>
@@ -180,7 +165,15 @@ namespace Layer4Stack.Services
         public void ServerStop()
         {
             // fire servers stop
-            _serverCancellationTokenSource?.Cancel();
+            TcpListener nullSrv = null;
+            var srv = Interlocked.Exchange(ref _server, nullSrv);
+            try
+            {
+                srv?.Stop();
+            } catch(SocketException e)
+            {
+                _logger.LogError("Socket exception.");
+            }
         }
 
         /// <summary>
@@ -191,51 +184,36 @@ namespace Layer4Stack.Services
         public async Task<bool> ServerStart()
         {
 
-            // start status 
-            bool status = false;
-
-            // try to start server 
-            lock (_locker)
+            // already started 
+            if (_server != null)
             {
-
-                // already started 
-                if (_server != null)
-                {
-                    _logger.LogInformation("Server already started.");
-                    return true;
-                } else
-                {
-
-                    // Init TCP listener
-                    _server = _config.IpAddress == null ? TcpListener.Create(_config.Port) : new TcpListener(IPAddress.Parse(_config.IpAddress), _config.Port);
-
-                    // create global cancellation token 
-                    _serverCancellationTokenSource = new CancellationTokenSource();
-
-                    // clear clients
-                    _clientRepo.Clear();
-
-                    // start server 
-                    try
-                    {
-                        // Start listening for client requests.
-                        _server.Start();
-
-                        // set started 
-                        status = true;
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.LogError("Server failed to start on port {port}. Exception: {exception}", _config.Port, e.Message);
-
-                        // cleanup
-                        _server.Stop();
-                        _server = null;
-                        _serverCancellationTokenSource?.Cancel();
-                    }
-
-                }
+                _logger.LogInformation("Server already started.");
+                return false;
             }
+
+            // clar clients repository
+            _clientRepo.Clear();
+
+            // Init TCP listener
+            var server = _config.IpAddress == null ? TcpListener.Create(_config.Port) : new TcpListener(IPAddress.Parse(_config.IpAddress), _config.Port);
+
+            // start server 
+            bool status = false;
+            try
+            {
+                // Start listening for client requests.
+                server.Start();
+
+                // set started 
+                status = true;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError("Server failed to start on port {port}. Exception: {exception}", _config.Port, e.Message);
+            }
+
+            // set server 
+            Interlocked.Exchange(ref _server, server);
 
             // raise status event
             if(status)
@@ -267,7 +245,7 @@ namespace Layer4Stack.Services
             {
 
                 // Enter the listening loop.
-                while (!_serverCancellationTokenSource.Token.IsCancellationRequested)
+                while (true)
                 {
 
                     // Wait for client to connect.
@@ -285,11 +263,10 @@ namespace Layer4Stack.Services
                         },
                         Client = client,
                         DataProcessor = _createDataProcessorFunc(),
-                        ClientHandlerTokenSource = new CancellationTokenSource()
                     };
 
                     // Handle client in background
-                    HandleClient(clientModel, _serverCancellationTokenSource.Token);
+                    HandleClient(clientModel);
 
                 }
             }
@@ -302,23 +279,30 @@ namespace Layer4Stack.Services
             catch (ObjectDisposedException)
             {
                 _logger.LogWarning("Server stopped. ObjectDisposedException exception occured.");
+            } catch(InvalidOperationException)
+            {
+                _logger.LogWarning("Invalid operation exception.");
             }
             finally
             {
-                lock (_locker)
+ 
+                // disconnect client 
+                _clientRepo.Values.ToList().ForEach(client =>
                 {
-                    // disconnect client 
-                    _clientRepo.Values.ToList().ForEach(client =>
-                    {
-                        client.Client.Close();
-                    });
-                    _clientRepo.Clear();
+                    client.Client.Close();
+                });
 
-                    // stop server
-                    _server?.Stop();
-                    _server = null;
+                // stop server
+                try
+                {
+                    TcpListener tcpListener = null;
+                    var srv = Interlocked.Exchange(ref _server, tcpListener);
+                    srv?.Stop();
+                } catch(SocketException)
+                {
+
                 }
-
+                
                 // log stop
                 _logger.LogInformation("Server stopped.");
             }
@@ -333,8 +317,7 @@ namespace Layer4Stack.Services
         /// </summary>
         /// <param name="client"></param>
         /// <param name="clientInfo"></param>
-        /// <param name="ct"></param>
-        private async Task HandleClient(TcpClientInfo client, CancellationToken ct)
+        private async Task HandleClient(TcpClientInfo client)
         {
 
             // trigger connected event
@@ -379,10 +362,12 @@ namespace Layer4Stack.Services
         /// Removes client from local repository.
         /// </summary>
         /// <param name="clientId"></param>
-        private void RemoveClientFromRepository(string clientId)
+        /// <returns></returns>
+        private TcpClientInfo RemoveClientFromRepository(string clientId)
         {
             TcpClientInfo client = null;
             _clientRepo.TryRemove(clientId, out client);
+            return client;
         }
 
     }

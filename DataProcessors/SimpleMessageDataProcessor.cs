@@ -19,7 +19,7 @@ namespace Layer4Stack.DataProcessors
         /// <param name="bufferLength"></param>
         /// <returns></returns>
         public static SimpleMessageDataProcessor CreateHsmProcessor(ILogger<SimpleMessageDataProcessor> logger, int bufferLength = 500) =>
-            new SimpleMessageDataProcessor(logger, bufferLength, (msg) => msg.Length >= 6 ? msg.ToList().Skip(2).Take(4).ToArray() : null);
+            new SimpleMessageDataProcessor(logger, bufferLength, (msg) => msg.Length >= 6 ? msg.ToList().Take(4).ToArray() : null);
  
         /// <summary>
         /// Id get function

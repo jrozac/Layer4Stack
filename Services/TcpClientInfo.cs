@@ -23,12 +23,6 @@ namespace Layer4Stack.Services
         public ClientInfo Info {get;set;}
 
         /// <summary>
-        /// Canellation token source to stop client handler and disconnect client from server.
-        /// </summary>
-        public CancellationTokenSource ClientHandlerTokenSource { get; set; }
-
-
-        /// <summary>
         /// Data Processor
         /// </summary>
         public IDataProcessor DataProcessor { get; set; }

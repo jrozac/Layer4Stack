@@ -5,7 +5,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Layer4Stack.Services
@@ -123,7 +122,6 @@ namespace Layer4Stack.Services
 
             // decorate message to be sent over network
             byte[] msg = client.DataProcessor.FilterSendData(message.Payload);
-            message.RawPayload = msg;
 
             // sent message 
             bool status = await SendData(client.Client, msg);
@@ -210,16 +208,13 @@ namespace Layer4Stack.Services
                 // message received
                 if(receivedMessages != null && receivedMessages.Any())
                 {
-                    receivedMessages.ToList().ForEach(msg => DataReceived(msg, client.Info.Id));
+                    receivedMessages.ToList().ForEach((msg) => DataReceived(msg, client.Info.Id));
                 }
             }
 
             // Close connection.
             client.Client.Close();
             client.Client = null;
-
-            // trigger diconnected event
-            RaiseClientDisconnectedEvent(client.Info);
 
         }
 

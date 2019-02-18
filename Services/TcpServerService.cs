@@ -4,6 +4,7 @@ using Layer4Stack.Models;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Layer4Stack.Services
@@ -16,11 +17,6 @@ namespace Layer4Stack.Services
     {
 
         #region vars
-
-        /// <summary>
-        /// Locker
-        /// </summary>
-        private readonly object _locker = new object();
 
         /// <summary>
         /// Logger factory 
@@ -130,65 +126,59 @@ namespace Layer4Stack.Services
         /// <returns></returns>
         public async Task<bool> Start()
         {
-            lock (_locker)
+
+            // do nothing if already started 
+            if (_socketServer != null)
             {
-
-                // do nothing if already started 
-                if (_socketServer != null)
-                {
-                    _logger.LogInformation("Server already started.");
-                    return true;
-                }
-                else
-                {
-                    // init socket
-                    _socketServer = new TcpServerSocket(_createDataProcessorFunc, _serverConfig, _loggerFactory);
-                }
-
+                _logger.LogInformation("Server already started.");
+                return true;
             }
-
+   
+            // init socket
+            var socket = new TcpServerSocket(_createDataProcessorFunc, _serverConfig, _loggerFactory);
+   
             // bind events
             if (_eventHandler != null)
             {
 
                 // client connected
-                _socketServer.ClientConnectedEvent += (sender, client) =>
+                socket.ClientConnectedEvent += (sender, client) =>
                 {
                     _eventHandler.HandleClientConnected(this, client);
                 };
 
                 // client disconnected
-                _socketServer.ClientDisconnectedEvent += (sender, client) =>
+                socket.ClientDisconnectedEvent += (sender, client) =>
                 {
                     _eventHandler.HandleClientDisconnected(this, client);
                 };
 
                 // server started
-                _socketServer.ServerStartedEvent += (sender, msg) =>
+                socket.ServerStartedEvent += (sender, msg) =>
                 {
                     _eventHandler.HandleServerStarted(this, _serverConfig);
                 };
 
                 // server stopped
-                _socketServer.ServerStoppedEvent += (sender, msg) =>
+                socket.ServerStoppedEvent += (sender, msg) =>
                 {
                     _eventHandler.HandleServerStopped(this, _serverConfig);
                 };
 
                 // server failed to start
-                _socketServer.ServerStartFailureEvent += (sender, msg) =>
+                socket.ServerStartFailureEvent += (sender, msg) =>
                 {
                     _eventHandler.HandleServerStartFailure(this, _serverConfig);
                 };
 
                 // message received
-                _socketServer.MsgReceivedEvent += (sender, msg) =>
+                socket.MsgReceivedEvent += (sender, msg) =>
                 {
                     _eventHandler.HandleReceivedData(this, msg);
                 };
 
                 // message sent
-                _socketServer.MsgSentEvent += (sender, msg) =>
+                socket.MsgSentEvent += (sender, msg) =>
                 {
                     _eventHandler.HandleSentData(this, msg);
                 };
@@ -196,12 +186,12 @@ namespace Layer4Stack.Services
             }
 
             // start server 
-            bool status = await _socketServer.ServerStart();
+            bool status = await socket.ServerStart();
 
-            // clean up if not started
-            if(!status)
+            // set server 
+            if(status)
             {
-                Stop();
+                Interlocked.Exchange(ref _socketServer, socket);
             }
 
             // return 
@@ -215,11 +205,9 @@ namespace Layer4Stack.Services
         /// <returns></returns>
         public void Stop()
         {
-            lock(_locker)
-            {
-                _socketServer?.ServerStop();
-                _socketServer = null;
-            }
+            TcpServerSocket nullSocket = null;
+            var socket = Interlocked.Exchange(ref _socketServer, nullSocket);
+            socket?.ServerStop();
         }
 
         /// <summary>
