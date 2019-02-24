@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Layer4Stack.Models;
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Layer4Stack.Services
@@ -48,6 +50,11 @@ namespace Layer4Stack.Services
         /// <param name="data"></param>
         /// <returns></returns>
         Task<int> SendToAll(byte[] data);
+
+        /// <summary>
+        /// Clients
+        /// </summary>
+        IList<ClientInfo> Clients { get; }
 
     }
 }

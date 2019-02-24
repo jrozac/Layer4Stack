@@ -164,11 +164,11 @@ namespace Layer4Stack.Services
 
             // create new client
             var socket = new TcpClientSocket(_createDataProcessorFunc, _clientConfig, _loggerFactory);
-            socket.ClientDisconnectedAction = new Func<ClientInfo, Task>(async (info) => {
+            socket.ClientDisconnectedAction = new Action<ClientInfo>((info) => {
                 Interlocked.Exchange(ref _socketClient, null)?.Disconnect();
                 if (_eventHandler != null)
                 {
-                    await _eventHandler.HandleClientDisconnected(info);
+                    _eventHandler.HandleClientDisconnected(info);
                 }
             });
 
@@ -181,7 +181,7 @@ namespace Layer4Stack.Services
             _allowAutoReconnect = true;
 
             // add support for rpc
-            socket.MsgReceivedAction = new Func<DataContainer, Task>(async (msg) => {
+            socket.MsgReceivedAction = new Action<DataContainer>((msg) => {
                 var id = _dataProcessor.GetIdentifier(msg.Payload);
                 if (id != null)
                 {
@@ -189,7 +189,7 @@ namespace Layer4Stack.Services
                 }
                 if(_eventHandler != null)
                 {
-                    await _eventHandler.HandleReceivedData(msg);
+                    _eventHandler.HandleReceivedData(msg);
                 }
             });
 

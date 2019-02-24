@@ -48,17 +48,17 @@ namespace Layer4Stack.Services
         /// <summary>
         /// Server start failure event
         /// </summary>
-        public Func<ServerConfig,Task> ServerStartFailureAction;
+        public Action<ServerConfig> ServerStartFailureAction;
 
         /// <summary>
         /// Server start failure event
         /// </summary>
-        public Func<ServerConfig, Task> ServerStartedAction;
+        public Action<ServerConfig> ServerStartedAction;
 
         /// <summary>
         /// Server stopped event
         /// </summary>
-        public Func<ServerConfig, Task> ServerStoppedAction;
+        public Action<ServerConfig> ServerStoppedAction;
 
         #endregion
 
@@ -122,7 +122,7 @@ namespace Layer4Stack.Services
         public bool DisconnectClient(string clientId)
         {
             TcpClientInfo client = RemoveClientFromRepository(clientId);
-            client?.Client.Close();
+            client?.Dispose();
             return client != null;
         }
 
@@ -132,8 +132,7 @@ namespace Layer4Stack.Services
         public void ServerStop()
         {
             // fire servers stop
-            TcpListener nullSrv = null;
-            var srv = Interlocked.Exchange(ref _server, nullSrv);
+            var srv = Interlocked.Exchange(ref _server, null);
             try
             {
                 srv?.Stop();
@@ -185,10 +184,10 @@ namespace Layer4Stack.Services
             // raise status event
             if(status)
             {
-                await (ServerStartedAction?.Invoke(_config) ?? Task.FromResult(false));
+                TaskUtil.RunAction(() => ServerStartedAction?.Invoke(_config), _logger);
             } else
             {
-                await (ServerStartFailureAction?.Invoke(_config) ?? Task.FromResult(false));
+                TaskUtil.RunAction(() => ServerStartFailureAction?.Invoke(_config), _logger);
             }
 
             // wait for clients (keep it run in background)
@@ -252,12 +251,6 @@ namespace Layer4Stack.Services
             }
             finally
             {
- 
-                // disconnect client 
-                _clientRepo.Values.ToList().ForEach(client =>
-                {
-                    client.Client.Close();
-                });
 
                 // stop server
                 try
@@ -267,15 +260,26 @@ namespace Layer4Stack.Services
                     srv?.Stop();
                 } catch(SocketException)
                 {
-
                 }
-                
+
+                // disconnect client 
+                var clients = _clientRepo.Values.ToList();
+                _clientRepo.Clear();
+                clients.ForEach(c => {
+                    try
+                    {
+                        c.Dispose();
+                    } catch(Exception)
+                    {
+                    }
+                });
+ 
                 // log stop
                 _logger.LogInformation("Server stopped.");
             }
 
             // server stopped
-            await (ServerStartedAction?.Invoke(_config) ?? Task.FromResult(false));
+            TaskUtil.RunAction(() => ServerStoppedAction?.Invoke(_config), _logger);
 
         }
 
@@ -288,7 +292,7 @@ namespace Layer4Stack.Services
         {
 
             // trigger connected event
-            await (ClientConnectedAction?.Invoke(client.Info) ?? Task.FromResult(false));
+            TaskUtil.RunAction(() => ClientConnectedAction?.Invoke(client.Info), _logger);
 
             // add client to repository
             PutClientToRepository(client);
@@ -300,7 +304,7 @@ namespace Layer4Stack.Services
             RemoveClientFromRepository(client.Info.Id);
 
             // raise clinet disconnected
-            await (ClientDisconnectedAction?.Invoke(client.Info) ?? Task.FromResult(false));
+            TaskUtil.RunAction(() => ClientDisconnectedAction?.Invoke(client.Info), _logger);
 
         }
 

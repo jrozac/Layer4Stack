@@ -35,7 +35,7 @@ namespace Layer4Stack.Services
         /// <summary>
         /// Fired when client fails to connect to server
         /// </summary>
-        public Func<ClientInfo,Task> ClientConnectionFailureAction;
+        public Action<ClientInfo> ClientConnectionFailureAction;
 
         #endregion
 
@@ -82,7 +82,7 @@ namespace Layer4Stack.Services
                 _logger.LogError("Connection failed with error: {message}.", e.Message);
 
                 // client connected failed 
-                await (ClientConnectionFailureAction?.Invoke(client.Info) ?? Task.FromResult(false));
+                TaskUtil.RunAction(() => ClientConnectionFailureAction?.Invoke(client.Info), _logger);
 
                 // return false
                 return false;
@@ -104,7 +104,13 @@ namespace Layer4Stack.Services
         /// </summary>
         public void Disconnect()
         {
-            _client?.Client.Close();
+            try
+            {
+                _client?.Dispose();
+            } catch(Exception)
+            {
+
+            }
         }
 
         /// <summary>
@@ -142,18 +148,19 @@ namespace Layer4Stack.Services
         {
 
             // client connected
-            await (ClientConnectedAction?.Invoke(_client.Info) ?? Task.FromResult(false));
+            TaskUtil.RunAction(() => ClientConnectedAction?.Invoke(_client.Info), _logger);
 
             // continuously reads data
             await ReadData(_client);
 
             // remove client from repository
             var client = Interlocked.Exchange(ref _client, null);
+            _client?.Client.GetStream().Close();
             _client?.Client?.Close();
             _client = null;
 
             // trigger diconnected event
-            await (ClientDisconnectedAction?.Invoke(client?.Info) ?? Task.FromResult(false));
+            TaskUtil.RunAction(() => ClientDisconnectedAction?.Invoke(client?.Info), _logger);
 
         }
 

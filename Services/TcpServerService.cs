@@ -87,7 +87,7 @@ namespace Layer4Stack.Services
         /// <summary>
         /// Clients 
         /// </summary>
-        public IList<ClientInfo> Clients => _socketServer?.Clients;
+        public IList<ClientInfo> Clients => _socketServer?.Clients ?? new List<ClientInfo>();
 
         /// <summary>
         /// Disconnect client

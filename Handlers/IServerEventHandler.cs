@@ -1,6 +1,4 @@
 ﻿using Layer4Stack.Models;
-using Layer4Stack.Services;
-using System.Threading.Tasks;
 
 namespace Layer4Stack.Handlers.Interfaces
 {
@@ -15,43 +13,43 @@ namespace Layer4Stack.Handlers.Interfaces
         /// Client connected
         /// </summary>
         /// <param name="info"></param>
-        Task HandleClientConnected(ClientInfo info);
+        void HandleClientConnected(ClientInfo info);
 
         /// <summary>
         /// Client disconnected
         /// </summary>
         /// <param name="info"></param>
-        Task HandleClientDisconnected(ClientInfo info);
+        void HandleClientDisconnected(ClientInfo info);
 
         /// <summary>
         /// Received message 
         /// </summary>
         /// <param name="data"></param>
-        Task HandleReceivedData(DataContainer data);
+        void HandleReceivedData(DataContainer data);
 
         /// <summary>
         /// Message sent
         /// </summary>
         /// <param name="data"></param>
-        Task HandleSentData(DataContainer data);
+        void HandleSentData(DataContainer data);
 
         /// <summary>
         /// Server started
         /// </summary>
         /// <param name="config"></param>
-        Task HandleServerStarted(ServerConfig config);
+        void HandleServerStarted(ServerConfig config);
 
         /// <summary>
         /// Server failed to start
         /// </summary>
         /// <param name="config"></param>
-        Task HandleServerStartFailure(ServerConfig config);
+        void HandleServerStartFailure(ServerConfig config);
 
         /// <summary>
         /// Server stopped
         /// </summary>
         /// <param name="config"></param>
-        Task HandleServerStopped(ServerConfig config);
+        void HandleServerStopped(ServerConfig config);
 
     }
 }

@@ -14,32 +14,31 @@ namespace Layer4Stack.Handlers
         /// Client connected
         /// </summary>
         /// <param name="info"></param>
-        Task HandleClientConnected(ClientInfo info);
+        void HandleClientConnected(ClientInfo info);
 
         /// <summary>
         /// Client connection failure
         /// </summary>
         /// <param name="info"></param>
-        Task HandleClientConnectionFailure(ClientInfo info);
+        void HandleClientConnectionFailure(ClientInfo info);
 
         /// <summary>
         /// Client disconnected
         /// </summary>
         /// <param name="info"></param>
-        Task HandleClientDisconnected(ClientInfo info);
+        void HandleClientDisconnected(ClientInfo info);
 
         /// <summary>
         /// Message received
         /// </summary>
         /// <param name="data"></param>
-        Task HandleReceivedData(DataContainer data);
+        void HandleReceivedData(DataContainer data);
 
         /// <summary>
         /// Message sent
         /// </summary>
         /// <param name="data"></param>
-        Task HandleSentData(DataContainer data);
-
+        void HandleSentData(DataContainer data);
 
     }
 }

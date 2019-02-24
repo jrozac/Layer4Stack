@@ -19,7 +19,7 @@ namespace Layer4Stack.Models
         public string IpAddress { get; internal set; }
 
         /// <summary>
-        /// Client port 
+        /// Port 
         /// </summary>
         public int Port { get; internal set; }
 

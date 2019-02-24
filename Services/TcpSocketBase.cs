@@ -48,22 +48,22 @@ namespace Layer4Stack.Services
         /// <summary>
         /// Message received event.
         /// </summary>
-        public Func<DataContainer,Task> MsgReceivedAction;
+        public Action<DataContainer> MsgReceivedAction;
 
         /// <summary>
         /// Message sent event.
         /// </summary>
-        public Func<DataContainer,Task> MsgSentAction;
+        public Action<DataContainer> MsgSentAction;
 
         /// <summary>
         /// Client connected event
         /// </summary>
-        public Func<ClientInfo,Task> ClientConnectedAction;
+        public Action<ClientInfo> ClientConnectedAction;
 
         /// <summary>
         /// Client disconnected event
         /// </summary>
-        public Func<ClientInfo,Task> ClientDisconnectedAction;
+        public Action<ClientInfo> ClientDisconnectedAction;
 
         #endregion
 
@@ -85,7 +85,7 @@ namespace Layer4Stack.Services
             // raise sent 
             if(status)
             {
-                await (MsgSentAction?.Invoke(message) ?? Task.FromResult(false));
+                TaskUtil.RunAction(() => MsgSentAction?.Invoke(message), _logger);
             }
             return status;
 
@@ -142,7 +142,7 @@ namespace Layer4Stack.Services
                 }
                 catch (IOException)
                 {
-                    continue;
+                    break;
                 }
                 catch (ObjectDisposedException)
                 {
@@ -168,9 +168,8 @@ namespace Layer4Stack.Services
                 }
             }
 
-            // Close connection.
-            client.Client.Close();
-            client.Client = null;
+            // Close connection
+            client.Dispose();
 
         }
 
@@ -186,7 +185,8 @@ namespace Layer4Stack.Services
             DataContainer model = new DataContainer { ClientId = clientId, Payload = msg, Time = DateTime.Now };
 
             // trigger event
-            await (MsgReceivedAction?.Invoke(model) ?? Task.FromResult(false));
+            TaskUtil.RunAction(() => MsgReceivedAction?.Invoke(model), _logger);
+            await Task.FromResult(true);
 
         }
 
