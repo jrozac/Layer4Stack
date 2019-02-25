@@ -152,7 +152,7 @@ namespace Layer4Stack.Services
                     break;
                 }
 
-                // No data (like client disconnected).
+                // No data (end of strem)
                 if (i == 0)
                 {
                     break;

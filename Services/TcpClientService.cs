@@ -121,10 +121,20 @@ namespace Layer4Stack.Services
         /// </summary>
         /// <param name="msg"></param>
         /// <returns></returns>
-        public async Task<bool> Send(byte[] msg)
+        public async Task<bool> SendAsync(byte[] msg)
         {
-
             return await(_socketClient?.Send(msg) ?? Task.FromResult(false));
+        }
+
+        /// <summary>
+        /// Send data 
+        /// </summary>
+        /// <param name="msg"></param>
+        /// <returns></returns>
+        public bool Send(byte[] msg)
+        {
+            var task = SendAsync(msg);
+            return task != null ? task.GetAwaiter().GetResult() : false;
         }
 
         /// <summary>
@@ -133,7 +143,7 @@ namespace Layer4Stack.Services
         /// <param name="req"></param>
         /// <param name="timeout"></param>
         /// <returns></returns>
-        public async Task<byte[]> Rpc(byte[] req, int timeout)
+        public async Task<byte[]> RpcAsync(byte[] req, int timeout)
         {
             // get identifier
             var id = _dataProcessor.GetIdentifier(req);
@@ -156,9 +166,21 @@ namespace Layer4Stack.Services
         }
 
         /// <summary>
+        /// Remote procedure
+        /// </summary>
+        /// <param name="req"></param>
+        /// <param name="timeout"></param>
+        /// <returns></returns>
+        public byte[] Rpc(byte[] req, int timeout)
+        {
+            var task = RpcAsync(req, timeout);
+            return task != null ? task.GetAwaiter().GetResult() : null;
+        }
+
+        /// <summary>
         /// Connect to server
         /// </summary>
-        public async Task<bool> Connect()
+        public async Task<bool> ConnectAsync()
         {
             Interlocked.Exchange(ref _connecting, new object());
 
@@ -216,6 +238,16 @@ namespace Layer4Stack.Services
         }
 
         /// <summary>
+        /// Connect to server
+        /// </summary>
+        /// <returns></returns>
+        public bool Connect()
+        {
+            var task = ConnectAsync();
+            return task != null ? task.GetAwaiter().GetResult() : false;
+        }
+
+        /// <summary>
         /// Disconnects client
         /// </summary>
         public void Disconnect()
@@ -250,7 +282,7 @@ namespace Layer4Stack.Services
                 _timer = new Timer((o) => {
                     if (_connecting == null && _allowAutoReconnect && _socketClient == null)
                     {
-                        Connect().GetAwaiter().GetResult();
+                        Connect();
                     }
                 }, null, TimeSpan.FromSeconds(0), TimeSpan.FromSeconds(5));
             }

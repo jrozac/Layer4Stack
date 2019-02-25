@@ -104,9 +104,20 @@ namespace Layer4Stack.Services
         /// </summary>
         /// <param name="data"></param>
         /// <returns></returns>
-        public async Task<int> SendToAll(byte[] data)
+        public async Task<int> SendToAllAsync(byte[] data)
         {
             return await (_socketServer?.SendToAll(data) ?? Task.FromResult(0));
+        }
+
+        /// <summary>
+        /// Send data 
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        public int SendToAll(byte[] data)
+        {
+            var task = SendToAllAsync(data);
+            return task != null ? task.GetAwaiter().GetResult() : 0;
         }
 
         /// <summary>
@@ -115,16 +126,28 @@ namespace Layer4Stack.Services
         /// <param name="clientId"></param>
         /// <param name="data"></param>
         /// <returns></returns>
-        public async Task<bool> SendToClient(string clientId, byte[] data)
+        public async Task<bool> SendToClientAsync(string clientId, byte[] data)
         {
             return await (_socketServer?.SendMessageToClient(clientId, data) ?? Task.FromResult(false));
         }
 
         /// <summary>
-        /// Starts server
+        /// Send to client 
+        /// </summary>
+        /// <param name="clientId"></param>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        public bool SendToClient(string clientId, byte[] data)
+        {
+            var task = SendToClientAsync(clientId, data);
+            return task != null ? task.GetAwaiter().GetResult() : false;
+        }
+
+        /// <summary>
+        /// Starts server async
         /// </summary>
         /// <returns></returns>
-        public async Task<bool> Start()
+        public async Task<bool> StartAsync()
         {
 
             // do nothing if already started 
@@ -163,6 +186,16 @@ namespace Layer4Stack.Services
             // return 
             return status;
  
+        }
+
+        /// <summary>
+        /// Start service
+        /// </summary>
+        /// <returns></returns>
+        public bool Start()
+        {
+            var task = StartAsync();
+            return task != null ? task.GetAwaiter().GetResult() : false;
         }
 
         /// <summary>

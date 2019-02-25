@@ -13,7 +13,13 @@ namespace Layer4Stack.Services
         /// <summary>
         /// Connect to server
         /// </summary>
-        Task<bool> Connect();
+        Task<bool> ConnectAsync();
+
+        /// <summary>
+        /// Connect to server 
+        /// </summary>
+        /// <returns></returns>
+        bool Connect();
 
         /// <summary>
         /// Disconnects from server
@@ -25,7 +31,14 @@ namespace Layer4Stack.Services
         /// </summary>
         /// <param name="data"></param>
         /// <returns></returns>
-        Task<bool> Send(byte[] data);
+        Task<bool> SendAsync(byte[] data);
+
+        /// <summary>
+        /// Send data to server 
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        bool Send(byte[] data);
 
         /// <summary>
         /// Remote procedure call
@@ -33,7 +46,15 @@ namespace Layer4Stack.Services
         /// <param name="req"></param>
         /// <param name="timeout"></param>
         /// <returns></returns>
-        Task<byte[]> Rpc(byte[] req, int timeout);
+        Task<byte[]> RpcAsync(byte[] req, int timeout);
+
+        /// <summary>
+        /// Remote procedure call
+        /// </summary>
+        /// <param name="req"></param>
+        /// <param name="timeout"></param>
+        /// <returns></returns>
+        byte[] Rpc(byte[] req, int timeout);
 
         /// <summary>
         /// Connected status
