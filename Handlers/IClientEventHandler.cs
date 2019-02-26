@@ -32,7 +32,9 @@ namespace Layer4Stack.Handlers
         /// Message received
         /// </summary>
         /// <param name="data"></param>
-        void HandleReceivedData(DataContainer data);
+        /// <param name="rpcResponse"></param>
+        /// <returns></returns>
+        byte[] HandleReceivedData(DataContainer data, bool rpcResponse = false);
 
         /// <summary>
         /// Message sent

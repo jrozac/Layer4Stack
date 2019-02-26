@@ -136,7 +136,7 @@ namespace Layer4Stack.Services
             try
             {
                 srv?.Stop();
-            } catch(SocketException e)
+            } catch(SocketException)
             {
                 _logger.LogError("Socket exception.");
             }

@@ -163,14 +163,22 @@ namespace Layer4Stack.Services
             // bind events
             if (_eventHandler != null)
             {
-
-                // client connected
                 socket.ClientConnectedAction = _eventHandler.HandleClientConnected;
                 socket.ClientDisconnectedAction = _eventHandler.HandleClientDisconnected;
                 socket.ServerStartedAction = _eventHandler.HandleServerStarted;
                 socket.ServerStoppedAction = _eventHandler.HandleServerStopped;
                 socket.ServerStartFailureAction = _eventHandler.HandleServerStartFailure;
-                socket.MsgReceivedAction = _eventHandler.HandleReceivedData;
+
+                // receive and action response
+                socket.MsgReceivedAction = (data) =>
+                {
+                    var rsp = _eventHandler.HandleReceivedData(data);
+                    if(rsp != null)
+                    {
+                        SendToClient(data.ClientId, rsp);
+                    }
+                };
+                    
                 socket.MsgSentAction = _eventHandler.HandleSentData;
             }
 

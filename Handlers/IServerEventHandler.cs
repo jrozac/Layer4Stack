@@ -22,10 +22,11 @@ namespace Layer4Stack.Handlers.Interfaces
         void HandleClientDisconnected(ClientInfo info);
 
         /// <summary>
-        /// Received message 
+        /// Message received
         /// </summary>
         /// <param name="data"></param>
-        void HandleReceivedData(DataContainer data);
+        /// <returns></returns>
+        byte[] HandleReceivedData(DataContainer data);
 
         /// <summary>
         /// Message sent

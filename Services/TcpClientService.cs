@@ -202,7 +202,7 @@ namespace Layer4Stack.Services
             _dataProcessor.Reset();
             _allowAutoReconnect = true;
 
-            // add support for rpc
+            // add support for rpc and auto response 
             socket.MsgReceivedAction = new Action<DataContainer>((msg) => {
                 var id = _dataProcessor.GetIdentifier(msg.Payload);
                 if (id != null)
@@ -211,7 +211,11 @@ namespace Layer4Stack.Services
                 }
                 if(_eventHandler != null)
                 {
-                    _eventHandler.HandleReceivedData(msg);
+                    var rsp = _eventHandler.HandleReceivedData(msg, id != null);
+                    if(rsp != null)
+                    {
+                        SendAsync(rsp);
+                    }
                 }
             });
 

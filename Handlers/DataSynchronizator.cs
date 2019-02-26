@@ -88,7 +88,7 @@ namespace Layer4Stack.Handlers
                 }
                 await Wait(item,timeoutMs);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 return null;
             }
@@ -123,7 +123,7 @@ namespace Layer4Stack.Handlers
                 {
                     rspItem.ResetEvent?.TrySetResult(payload);
                 }
-                catch (Exception e) { }
+                catch (Exception) { }
                 result = true;
             }
             return result;
