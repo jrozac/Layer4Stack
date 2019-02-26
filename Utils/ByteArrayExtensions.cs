@@ -4,7 +4,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Layer4StackTest")]
 
-namespace Layer4Stack
+namespace Layer4Stack.Utils
 {
 
     /// <summary>
