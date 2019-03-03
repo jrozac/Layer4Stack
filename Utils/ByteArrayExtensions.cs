@@ -85,8 +85,10 @@ namespace Layer4Stack.Utils
         /// <param name="needle"></param>
         /// <param name="haystackLength"></param>
         /// <param name="needleLength"></param>
+        /// <param name="haystackLengthLimit"></param>
+        /// <param name="minStepSize"></param>
         /// <returns></returns>
-        public static int[] FindOccurrences(this byte[] haystack, byte[] needle, int? haystackLengthLimit = null)
+        public static int[] FindOccurrences(this byte[] haystack, byte[] needle, int? haystackLengthLimit = null, int minStepSize = 0)
         {
             // nothing to do with invalid buffers
             if(needle?.Length == 0 || haystack?.Length ==0)
@@ -94,8 +96,9 @@ namespace Layer4Stack.Utils
                 return new int[0];
             }
 
-            int haystackLength = Math.Min(haystack.Length, Math.Max(0,haystackLengthLimit ?? int.MaxValue));
             int needleLength = needle.Length;
+            minStepSize = Math.Max(minStepSize, needleLength);
+            int haystackLength = Math.Min(haystack.Length, Math.Max(0,haystackLengthLimit ?? int.MaxValue));
             var poss = new List<int>();
             int? prev = null;
             for(int i= 0; i <= haystackLength - needleLength; i++)
@@ -103,8 +106,9 @@ namespace Layer4Stack.Utils
                 bool found = haystack.Skip(i).Take(needleLength).SequenceEqual(needle.Take(needleLength));
                 int ix = i + needleLength - 1;
 
-                // add if not duplicate (e.g. terminator is XX, message is AaXXXooXXXX, positions are: 2,7,9)
-                if (found && (!prev.HasValue || (Math.Abs(ix - prev.Value)) >= needleLength))
+                // add if not duplicate (e.g. terminator is XX, message is AaXXXooXXXX, positions are: 2,7,9) 
+                // and step big enough
+                if (found && (!prev.HasValue || (Math.Abs(ix - prev.Value)) >= minStepSize))
                 {
                     poss.Add(ix);
                     prev = ix;
@@ -210,6 +214,34 @@ namespace Layer4Stack.Utils
                 return ret;
             }
             return new byte[0];
+        }
+
+        /// <summary>
+        /// Trim zero 
+        /// </summary>
+        /// <param name="arr"></param>
+        /// <returns></returns>
+        public static byte[] TrimZero(this byte[] arr)
+        {
+            // get left position
+            int left = 0;
+            for (left = 0; left < arr.Length && arr[left] == 0; left++) ;
+
+            // get from right 
+            int right;
+            for (right = 0; right < arr.Length && arr[arr.Length-right-1] == 0; right++);
+
+            // nothing to do
+            if(left == 0 && right == 0)
+            {
+                return arr;
+            }
+
+            // trim and return 
+            byte[] ret = new byte[arr.Length - left - right];
+            Buffer.BlockCopy(arr, left, ret, 0, arr.Length - left - right);
+            return ret;
+
         }
 
     }

@@ -30,9 +30,13 @@ namespace Layer4Stack.Services
             switch (dataProcessorType)
             {
                 case EnumDataProcessorType.Hsm:
-                    return new Func<IDataProcessor>(() => SimpleMessageDataProcessor.CreateHsmProcessor(
+                    return new Func<IDataProcessor>(() => SimpleMessageDataProcessor.CreateProcessor(
                         loggerFactory.CreateLogger<SimpleMessageDataProcessor>(),
                         config.SocketBufferSize * 2));
+                case EnumDataProcessorType.Message:
+                    return new Func<IDataProcessor>(() => SimpleMessageDataProcessor.CreateProcessor(
+                        loggerFactory.CreateLogger<SimpleMessageDataProcessor>(),
+                        config.SocketBufferSize * 2, 2));
                 case EnumDataProcessorType.Iso8583:
                     return new Func<IDataProcessor>(() => MessageDataProcessor.CreateIso8583Processor(
                         loggerFactory.CreateLogger<MessageDataProcessor>(),

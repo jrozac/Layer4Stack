@@ -8,6 +8,9 @@ using System.Text;
 namespace Layer4StackTest
 {
 
+    /// <summary>
+    /// Byte array extensions test 
+    /// </summary>
     [TestClass]
     public class ByteArrayExtensionsTest
     {
@@ -154,7 +157,9 @@ namespace Layer4StackTest
 
         }
 
-
+        /// <summary>
+        /// Test find occurencies 
+        /// </summary>
         [TestMethod]
         public void TestFindOccurencies()
         {
@@ -341,5 +346,18 @@ namespace Layer4StackTest
             ress = Encoding.ASCII.GetString(res);
             Assert.AreEqual("", ress);
         }
+
+        /// <summary>
+        /// Test trim zero
+        /// </summary>
+        [TestMethod]
+        public void TestTrimZero()
+        {
+            byte[] buffer = new byte[] { 0, 0, 0, 1, 0, 0, 0, 2, 0 };
+            buffer = buffer.TrimZero();
+            var expected = new byte[] { 1, 0, 0, 0, 2 };
+            Assert.IsTrue(buffer.SequenceEqual(expected));
+        }
+
     }
 }

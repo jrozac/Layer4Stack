@@ -56,7 +56,7 @@ namespace Layer4StackTest
             CreateTestServer<TEventHandler>(int port, bool start = false)
             where TEventHandler : IServerEventHandler
         {
-            var dataProcessor = SimpleMessageDataProcessor.CreateHsmProcessor(_loggerFactory.CreateLogger<SimpleMessageDataProcessor>());
+            var dataProcessor = SimpleMessageDataProcessor.CreateProcessor(_loggerFactory.CreateLogger<SimpleMessageDataProcessor>());
             var eventHandler = Activator.CreateInstance<TEventHandler>();
             IServerService server = new TcpServerService(eventHandler, new ServerConfig("127.0.0.1", port),
                 _loggerFactory, EnumDataProcessorType.Hsm, (b) => b.ToList().Take(1).ToArray());
@@ -85,7 +85,7 @@ namespace Layer4StackTest
         /// <returns></returns>
         public static IDataProcessor CreateSimpleDataProcessor()
         {
-            var dataProcessor = SimpleMessageDataProcessor.CreateHsmProcessor(_loggerFactory.CreateLogger<SimpleMessageDataProcessor>());
+            var dataProcessor = SimpleMessageDataProcessor.CreateProcessor(_loggerFactory.CreateLogger<SimpleMessageDataProcessor>());
             return dataProcessor;
         }
 

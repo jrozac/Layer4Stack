@@ -19,9 +19,22 @@ namespace Layer4Stack.DataProcessors
         /// <param name="logger"></param>
         /// <param name="bufferLength"></param>
         /// <returns></returns>
-        public static SimpleMessageDataProcessor CreateHsmProcessor(ILogger<SimpleMessageDataProcessor> logger, int bufferLength = 500) =>
-            new SimpleMessageDataProcessor(logger, bufferLength, (msg) => msg.Length >= 6 ? msg.ToList().Take(4).ToArray() : null);
- 
+        public static SimpleMessageDataProcessor CreateProcessor(
+            ILogger<SimpleMessageDataProcessor> logger, 
+            int bufferLength = 500, int headerLength = 1, 
+            Func<byte[], byte[]> func = null) =>
+            new SimpleMessageDataProcessor(logger, bufferLength, new byte[1] { 0 }, headerLength, func ?? ((msg) => msg.Length >= 5 ? msg.ToList().Take(4).ToArray() : null));
+
+        /// <summary>
+        /// Delimiter
+        /// </summary>
+        private readonly byte[] _delimiter;
+
+        /// <summary>
+        /// Length header size 
+        /// </summary>
+        private readonly int _headerSize;
+
         /// <summary>
         /// Id get function
         /// </summary>
@@ -43,11 +56,24 @@ namespace Layer4Stack.DataProcessors
         private int _bufferLength;
 
         /// <summary>
-        /// Constructor with get id func
+        /// Constructor with injected properties 
         /// </summary>
-        /// <param name="getIdFunc"></param>
-        public SimpleMessageDataProcessor(ILogger<SimpleMessageDataProcessor> logger, int bufferLength, Func<byte[], byte[]> getIdFunc = null)
+        /// <param name="logger"></param>
+        /// <param name="bufferLength"></param>
+        /// <param name="delimiter"></param>
+        /// <param name="headerSize"></param>
+        /// <param name="getIdFunc">Id get function. Used to extract the if from raw message.</param>
+        public SimpleMessageDataProcessor(ILogger<SimpleMessageDataProcessor> logger, int bufferLength, byte[] delimiter, int headerSize, Func<byte[], byte[]> getIdFunc = null)
         {
+
+            // check arguments
+            if(_delimiter?.Length == 0 || (_headerSize > 3 && _headerSize <= 0) && _bufferLength < _delimiter.Length + headerSize + 1)
+            {
+                throw new ArgumentException("Invalid setup");
+            }
+
+            _delimiter = delimiter;
+            _headerSize = headerSize;
             _logger = logger;
             _getIdFunc = getIdFunc;
             _buffer = new byte[bufferLength];
@@ -61,17 +87,18 @@ namespace Layer4Stack.DataProcessors
         public byte[] FilterSendData(byte[] msg)
         {
             // length check
-            if(msg.Length > 256)
+            if(msg.Length > MaxSize)
             {
                 _logger.LogError("Message is too long.");
                 return null;
             }
 
-            // pack and return
-            var ret = new byte[msg.Length + 2];
+            // set length header 
+            var header = DataProcessorUtil.LengthToHeader(msg.Length, _headerSize);
+            var ret = new byte[msg.Length + 1 + _headerSize];
             ret[0] = 0;
-            ret[1] = (byte)msg.Length;
-            Buffer.BlockCopy(msg, 0, ret, 2, msg.Length);
+            Buffer.BlockCopy(header, 0, ret, 1, _headerSize);
+            Buffer.BlockCopy(msg, 0, ret, 1 + _headerSize, msg.Length);
             return ret;
         }
 
@@ -114,21 +141,47 @@ namespace Layer4Stack.DataProcessors
             _bufferLength = _bufferLength + length;
 
             // find starts of messages 
-            var starts = _buffer.FindOccurrences(new byte[1] { 0 }, _bufferLength).
-                Where(pos => _bufferLength > pos + 1 && _bufferLength > pos + 1 + _buffer[pos + 1]);
+            var starts = _buffer.FindOccurrences(_delimiter, _bufferLength, ContainerSize);
             if (!starts.Any())
             {
                 return new List<byte[]>();
             }
 
             // get intervals 
-            var intervals = starts.Select(pos => new Tuple<int, int>(pos + 2, _buffer[pos + 1])).ToArray();
+            var intervals = starts.Where(pos => _bufferLength >= pos + ContainerSize &&
+                _bufferLength >= pos + ContainerSize + DataProcessorUtil.HeaderToLength(_buffer.Slice(pos + 1, _headerSize))).
+                Select(pos => new Tuple<int, int>(pos + ContainerSize,
+                    (int)DataProcessorUtil.HeaderToLength(_buffer.Slice(pos + 1, _headerSize)))).
+                ToArray();
+
+            // no intervals found
+            if (!intervals.Any())
+            {
+                return new List<byte[]>();
+            }
+
+            // fix intervals to not overlap 
+            intervals = Enumerable.Range(0, intervals.Length).Select(i => {
+                var cur = intervals[i];
+                if (i + 1 >= intervals.Length)
+                {
+                    return cur;
+                }
+                var next = intervals[i + 1];
+                var endPos = cur.Item1 + cur.Item2 - 1;
+                if (endPos >= next.Item1)
+                {
+                    _logger.LogError("Overlapping messages");
+                    return new Tuple<int, int>(cur.Item1, next.Item1 - cur.Item1);
+                }
+                return cur;
+            }).ToArray();
 
             // get messages 
             var msgs = _buffer.SliceMulti(intervals);
 
             // move buffer
-            var start = starts.Max() + 2 + _buffer[starts.Max() + 1];
+            var start = intervals.Last().Item1 + intervals.Last().Item2 + 1;
             if(start >= _bufferLength)
             {
                 _bufferLength = 0;
@@ -149,5 +202,16 @@ namespace Layer4Stack.DataProcessors
         {
             _bufferLength = 0;
         }
+
+        /// <summary>
+        /// Container size 
+        /// </summary>
+        private int ContainerSize => _headerSize + _delimiter.Length;
+
+        /// <summary>
+        /// Max message size 
+        /// </summary>
+        private int MaxSize => (int) Math.Pow(byte.MaxValue+1, _headerSize)-1;
+
     }
 }

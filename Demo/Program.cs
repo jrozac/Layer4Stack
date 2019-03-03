@@ -11,7 +11,7 @@ namespace DemoApp
     /// <summary>
     /// Example program
     /// </summary>
-    class Program
+    public static class Program
     {
 
         /// <summary>

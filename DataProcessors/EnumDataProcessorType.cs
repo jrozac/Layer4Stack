@@ -15,6 +15,12 @@
         /// <summary>
         /// Hsm communication (message format: [zero as message start][length one char][data]
         /// </summary>
-        Hsm
+        Hsm,
+
+        /// <summary>
+        /// Default message (format: [zero as message start][length two char][data]
+        /// </summary>
+        Message
+
     }
 }
