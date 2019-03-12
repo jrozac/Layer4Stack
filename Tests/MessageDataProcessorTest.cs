@@ -39,7 +39,7 @@ namespace Layer4StackTest
         /// <param name="useHeader"></param>
         /// <param name="synchronizator"></param>
         /// <returns></returns>
-        private MessageDataProcessor CreteDataProcessor(bool useHeader = false, string terminator = "XXXXX", string synchronizator = null)
+        private MessageDataProcessor CreateDataProcessor(bool useHeader = false, string terminator = "XXXXX", string synchronizator = null)
         {
             var logp = new LoggerFactory();
             var cfg = new MessageDataProcessorConfig(5000,
@@ -90,7 +90,7 @@ namespace Layer4StackTest
             var random = new Random();
 
             // data processor
-            var proc = CreteDataProcessor(useHeader, terminator);
+            var proc = CreateDataProcessor(useHeader, terminator);
 
             // create some messages to be sent 
             var msgs = CreateTestMessages(allMessages).Select(m => Encoding.ASCII.GetBytes(m)).ToArray();
@@ -141,7 +141,7 @@ namespace Layer4StackTest
             int allMessages = msgsClear.Count();
 
             // data processor
-            var proc = CreteDataProcessor(true);
+            var proc = CreateDataProcessor(true);
 
             // create some messages to be sent 
             var msgs = msgsClear.Select(m => Encoding.ASCII.GetBytes(m)).ToArray();
@@ -187,7 +187,7 @@ namespace Layer4StackTest
         public void TestSynchronizationWithSyncData()
         {
 
-            var proc = CreteDataProcessor(true, null, "!!!!");
+            var proc = CreateDataProcessor(true, null, "!!!!");
             var bufferMax = proc.Config.MaxLength;
             string msg = "!!!!THIS IS MY MESSAGE!";
 
@@ -228,7 +228,7 @@ namespace Layer4StackTest
         public void TestSynchronizationWithTerminator()
         {
 
-            var proc = CreteDataProcessor(true, "XXXXXXX");
+            var proc = CreateDataProcessor(true, "XXXXXXX");
             var bufferMax = proc.Config.MaxLength;
             string msg = "!!!!THIS IS MY MESSAGE!";
             msg = "MMMMMMMMMMMMMMMMMMMMMMM";
@@ -270,10 +270,37 @@ namespace Layer4StackTest
         [TestMethod]
         public void TestZeroLengthBufferDelivery()
         {
-            var proc = CreteDataProcessor(false, "X");
+            var proc = CreateDataProcessor(false, "X");
             var res = proc.ProcessReceivedRawData(new byte[0], 0);
             Assert.IsNotNull(res);
             Assert.AreEqual(0, res.Count());
+
+        }
+
+        /// <summary>
+        /// Test that delimiter present in header (delimiter in length header) does not split message.
+        /// </summary>
+        [TestMethod]
+        public void TestDelimiterInHeaderDoesNotSplitMessage()
+        {
+
+            // create processor 
+            var logp = new LoggerFactory();
+            var cfg = new MessageDataProcessorConfig(5000, new byte[] { 3 }, true);
+            var proc = new MessageDataProcessor(cfg, logp.CreateLogger<MessageDataProcessor>());
+
+            // create buffer 
+            // (03 - length, XXX  - message, 3 - terminator)
+            var buffer = new byte[] {
+                0, 3, 88, 88, 88, 3,
+                0, 3, 99, 99, 99, 3,
+            };
+
+            // process result
+            var ret = proc.ProcessReceivedRawData(buffer, buffer.Length);
+            Assert.AreEqual(2, ret.Count());
+            Assert.IsTrue(new byte[] { 88, 88, 88 }.SequenceEqual(ret.First()));
+            Assert.IsTrue(new byte[] { 99, 99, 99 }.SequenceEqual(ret.Skip(1).First()));
 
         }
 

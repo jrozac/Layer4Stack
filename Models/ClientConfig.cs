@@ -12,7 +12,9 @@
         /// <param name="address"></param>
         /// <param name="port"></param>
         /// <param name="enableAutoConnect"></param>
-        public ClientConfig(string address, int port, bool enableAutoConnect = false) : base(address, port)
+        /// <param name="bufferSize"></param>
+        public ClientConfig(string address, int port, bool enableAutoConnect = false, int? bufferSize = null) : 
+            base(address, port, bufferSize)
         {
             EnableAutoConnect = enableAutoConnect;
         }

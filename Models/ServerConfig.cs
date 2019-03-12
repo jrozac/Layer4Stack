@@ -11,7 +11,8 @@
         /// </summary>
         /// <param name="address"></param>
         /// <param name="port"></param>
-        public ServerConfig(string address, int port) : base(address, port)
+        /// <param name="bufferSize"></param>
+        public ServerConfig(string address, int port, int? bufferSize = null) : base(address, port, bufferSize)
         {
         }
     }

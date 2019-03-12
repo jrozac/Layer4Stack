@@ -160,7 +160,9 @@ namespace Layer4Stack.DataProcessors
             IEnumerable<byte[]> msgs = new List<byte[]>();
 
             // read messages positions by terminator
-            int[] msgsEndIndexesByTerminator = Config.Terminator != null ? _buffer.FindOccurrences(Config.Terminator, _bufferLength) : null;
+            int[] msgsEndIndexesByTerminator = Config.Terminator != null ? 
+                _buffer.FindOccurrences(Config.Terminator, _bufferLength,
+                Config.ContainerSize, Config.UseLengthHeader ? 2 : 0) : null;
 
             // read messages by length header
             int[] msgsEndIndexesByHeader = null;
@@ -180,8 +182,6 @@ namespace Layer4Stack.DataProcessors
                 }
                 msgsEndIndexesByHeader = ixs.ToArray();
             }
-
-            // todo: bug when iso header contains terminator (due to length), example: terminator 3 and length 3
 
             // if header and terminator determinations are enabled, both must provide the same results
             if(msgsEndIndexesByHeader != null && msgsEndIndexesByTerminator != null && !msgsEndIndexesByHeader.SequenceEqual(msgsEndIndexesByTerminator))
@@ -218,5 +218,6 @@ namespace Layer4Stack.DataProcessors
             _bufferLength = 0;
             _synchronized = true;
         }
+
     }
 }

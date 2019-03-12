@@ -177,7 +177,6 @@ namespace Layer4StackTest
 
             // setup
             var delimiter = new byte[] { 0 };
-            int headerLength = 2;
 
             // create processor 
             var logger = new LoggerFactory().CreateLogger<SimpleMessageDataProcessor>();
@@ -192,6 +191,27 @@ namespace Layer4StackTest
             // tesr ret 
             var ret = proc.ProcessReceivedRawData(buffer.ToArray(), buffer.Count());
             Assert.AreEqual(256, ret.Last().Length);
+
+        }
+
+        /// <summary>
+        /// Test that delimtier in length header is not treated as delimiter
+        /// </summary>
+        [TestMethod]
+        public void TestDelimiterInHeaderDoesNotSplitMessage()
+        {
+            // create processor 
+            var logger = new LoggerFactory().CreateLogger<SimpleMessageDataProcessor>();
+            var proc = SimpleMessageDataProcessor.CreateProcessor(logger, 500, 2);
+
+            // buffer of two messages 9 (0019) and 99 (00299)
+            var buffer = new byte[] { 0, 0, 1, 9, 0, 0, 2, 9, 9 };
+
+            // process buffer 
+            var ret = proc.ProcessReceivedRawData(buffer, buffer.Length);
+            Assert.AreEqual(2, ret.Count());
+            Assert.IsTrue(new byte[] { 9 }.SequenceEqual(ret.First()));
+            Assert.IsTrue(new byte[] { 9, 9 }.SequenceEqual(ret.Skip(1).First()));
 
         }
 

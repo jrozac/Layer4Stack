@@ -3,6 +3,7 @@ using Layer4Stack.Handlers;
 using Layer4Stack.Models;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -30,7 +31,7 @@ namespace Layer4Stack.Services
         /// <summary>
         /// Data sync
         /// </summary>
-        private readonly DataSynchronizator _dataSynchronizator;
+        private readonly DataSynchronizator<byte[]> _dataSynchronizator;
 
         /// <summary>
         /// Client config
@@ -91,7 +92,7 @@ namespace Layer4Stack.Services
             _logger = loggerFactory.CreateLogger<TcpClientService>();
             _clientConfig = clientConfig;
             _eventHandler = eventHandler;
-            _dataSynchronizator = new DataSynchronizator(loggerFactory.CreateLogger<DataSynchronizator>());
+            _dataSynchronizator = new DataSynchronizator<byte[]>(loggerFactory.CreateLogger<DataSynchronizator<byte[]>>());
             _dataProcessor = _createDataProcessorFunc();
 
             ManageAutoConnect();
@@ -109,7 +110,7 @@ namespace Layer4Stack.Services
             _logger = loggerFactory.CreateLogger<TcpClientService>();
             _clientConfig = clientConfig;
             _eventHandler = eventHandler;
-            _dataSynchronizator = new DataSynchronizator(loggerFactory.CreateLogger<DataSynchronizator>());
+            _dataSynchronizator = new DataSynchronizator<byte[]>(loggerFactory.CreateLogger<DataSynchronizator<byte[]>>());
             _dataProcessor = createDataProcessorFunc();
             _createDataProcessorFunc = createDataProcessorFunc;
 
@@ -154,7 +155,7 @@ namespace Layer4Stack.Services
             }
 
             // send
-            return await _dataSynchronizator.ExecuteAction(id, timeout, () =>
+            return await _dataSynchronizator.ExecuteActionAndWaitForResult(Encoding.ASCII.GetString(id), timeout, () =>
             {
                 bool status = _socketClient?.Send(req).GetAwaiter().GetResult() ?? false;
                 if (!status)
@@ -207,7 +208,7 @@ namespace Layer4Stack.Services
                 var id = _dataProcessor.GetIdentifier(msg.Payload);
                 if (id != null)
                 {
-                    _dataSynchronizator.NotifyResult(id, msg.Payload);
+                    _dataSynchronizator.NotifyResult(Encoding.ASCII.GetString(id), msg.Payload);
                 }
                 if(_eventHandler != null)
                 {

@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Layer4Stack.Handlers
@@ -10,19 +9,19 @@ namespace Layer4Stack.Handlers
     /// <summary>
     /// Data synchronizator
     /// </summary>
-    public class DataSynchronizator : IDisposable
+    public class DataSynchronizator<TData> : IDisposable
     {
 
         /// <summary>
         /// Logger
         /// </summary>
-        private readonly ILogger<DataSynchronizator> _logger;
+        private readonly ILogger<DataSynchronizator<TData>> _logger;
 
         /// <summary>
         /// Constructor with logger
         /// </summary>
         /// <param name="logger"></param>
-        public DataSynchronizator(ILogger<DataSynchronizator> logger)
+        public DataSynchronizator(ILogger<DataSynchronizator<TData>> logger)
         {
             _logger = logger;
         }
@@ -32,9 +31,9 @@ namespace Layer4Stack.Handlers
         /// </summary>
         private class DataItem
         {
-            public byte[] Id { get; set; }
-            public byte[] Payload { get; set; }
-            public TaskCompletionSource<byte[]> ResetEvent { get; set; }
+            public string Id { get; set; }
+            public TData Payload { get; set; }
+            public TaskCompletionSource<TData> ResetEvent { get; set; }
             public bool Replaced { get; set; }
         }
 
@@ -50,52 +49,65 @@ namespace Layer4Stack.Handlers
         public int ActiveCount() => _items.Count;
 
         /// <summary>
+        /// Wait for result
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="timeoutMs"></param>
+        /// <returns></returns>
+        public async Task<TData> WaitForResult(string id, int timeoutMs)
+        {
+            return await ExecuteActionAndWaitForResult(id, timeoutMs, null);
+        }
+
+        /// <summary>
         /// Action execute
         /// </summary>
         /// <param name="id"></param>
         /// <param name="timeoutMs"></param>
         /// <param name="actionDelegate"></param>
         /// <returns></returns>
-        public async Task<byte[]> ExecuteAction(byte[] id, int timeoutMs, Func<bool> actionDelegate)
+        public async Task<TData> ExecuteActionAndWaitForResult(string id, int timeoutMs, Func<bool> actionDelegate)
         {
             // try adding new item 
-            var ids = GetIds(id);
             var item = new DataItem
             {
                 Id = id,
-                ResetEvent = new TaskCompletionSource<byte[]>()
+                ResetEvent = new TaskCompletionSource<TData>()
             };
-            bool status = _items.TryAdd(ids, item);
+            bool status = _items.TryAdd(id, item);
 
             // double key 
             if(!status)
             {
-                _logger.LogWarning("Double id {id} detected.", GetIds(id));
-                return null;
+                _logger.LogWarning("Double id {id} detected.", id);
+                return default(TData);
             }
             
             // declare response 
-            byte[] rsp = null;
+            TData rsp = default(TData);
 
             // send request and wait for response 
             try
             {
-                var delegateStatus = actionDelegate();
-                if (!delegateStatus)
+                if(actionDelegate != null)
                 {
-                    _logger.LogError("Failed to execute action.");
-                    return null;
+                    var delegateStatus = actionDelegate();
+                    if (!delegateStatus)
+                    {
+                        _logger.LogError("Failed to execute action.");
+                        return default(TData);
+                    }
                 }
                 await Wait(item,timeoutMs);
             }
             catch (Exception)
             {
-                return null;
+                return default(TData);
             }
             finally
             {
                 DataItem rspItem;
-                if (_items.TryRemove(GetIds(id), out rspItem))
+                if (_items.TryRemove(id, out rspItem))
                 {
                     rsp = rspItem.Payload;
                 }
@@ -111,12 +123,11 @@ namespace Layer4Stack.Handlers
         /// </summary>
         /// <param name="id"></param>
         /// <param name="payload"></param>
-        public bool NotifyResult(byte[] id, byte[] payload)
+        public bool NotifyResult(string id, TData payload)
         {
             bool result = false;
             DataItem rspItem;
-            var ids = GetIds(id);
-            if (_items.TryGetValue(ids, out rspItem))
+            if (_items.TryGetValue(id, out rspItem))
             {
                 rspItem.Payload = payload;
                 try
@@ -147,16 +158,12 @@ namespace Layer4Stack.Handlers
             _items = null;
         }
 
+        /// <summary>
+        /// Reset synchronizator
+        /// </summary>
         public void Reset()
         {
-
+            _items.Clear();
         }
-
-        /// <summary>
-        /// Convert byte id to string id. It makes it possible to be matched in a dictionary.
-        /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        private string GetIds(byte[] id) => Encoding.ASCII.GetString(id);
     }
 }

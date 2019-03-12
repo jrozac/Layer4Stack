@@ -12,10 +12,15 @@
         /// </summary>
         /// <param name="address"></param>
         /// <param name="port"></param>
-        protected ConfigBase(string address, int port)
+        /// <param name="bufferSize"></param>
+        protected ConfigBase(string address, int port, int? bufferSize = null)
         {
             Port = port;
             IpAddress = address;
+            if(bufferSize.HasValue)
+            {
+                SocketBufferSize = bufferSize.Value;
+            }
         }
 
         /// <summary>

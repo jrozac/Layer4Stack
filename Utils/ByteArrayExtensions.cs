@@ -87,8 +87,9 @@ namespace Layer4Stack.Utils
         /// <param name="needleLength"></param>
         /// <param name="haystackLengthLimit"></param>
         /// <param name="minStepSize"></param>
+        /// <param name="offset"></param>
         /// <returns></returns>
-        public static int[] FindOccurrences(this byte[] haystack, byte[] needle, int? haystackLengthLimit = null, int minStepSize = 0)
+        public static int[] FindOccurrences(this byte[] haystack, byte[] needle, int? haystackLengthLimit = null, int minStepSize = 0, int offset = 0)
         {
             // nothing to do with invalid buffers
             if(needle?.Length == 0 || haystack?.Length ==0)
@@ -101,7 +102,7 @@ namespace Layer4Stack.Utils
             int haystackLength = Math.Min(haystack.Length, Math.Max(0,haystackLengthLimit ?? int.MaxValue));
             var poss = new List<int>();
             int? prev = null;
-            for(int i= 0; i <= haystackLength - needleLength; i++)
+            for(int i=offset; i <= haystackLength - needleLength; i++)
             {
                 bool found = haystack.Skip(i).Take(needleLength).SequenceEqual(needle.Take(needleLength));
                 int ix = i + needleLength - 1;

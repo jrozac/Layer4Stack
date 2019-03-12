@@ -78,8 +78,7 @@ namespace Layer4Stack.Utils
             }
 
             // caclulate size and return 
-            var sizes = Enumerable.Range(0, header.Length).
-                Select(i =>
+            var sizes = Enumerable.Range(0, header.Length).Select(i =>
                 {
                     return header[i] * ((long)Math.Pow(256, header.Length-i-1));
                 });
