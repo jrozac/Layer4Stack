@@ -3,7 +3,7 @@ using Layer4Stack.Models;
 using System;
 using System.Text;
 
-namespace DemoApp
+namespace Layer4StackCmdDemo
 {
     /// <summary>
     /// Client event handler

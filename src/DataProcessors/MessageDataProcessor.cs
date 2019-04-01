@@ -56,7 +56,7 @@ namespace Layer4Stack.DataProcessors
         /// <param name="logger"></param>
         public MessageDataProcessor(MessageDataProcessorConfig config, ILogger<MessageDataProcessor> logger)
         {
-            _logger = logger ?? new Logger<MessageDataProcessor>(null);
+            _logger = logger;
             Config = config;
             _buffer = new byte[config.MaxLength];
         }

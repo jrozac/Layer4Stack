@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Text;
 
-namespace DemoApp
+namespace Layer4StackCmdDemo
 {
 
     /// <summary>

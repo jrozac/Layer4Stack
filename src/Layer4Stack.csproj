@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <FileVersion>2.0.0.0</FileVersion>
+    <Version>2.0.0-rc-01</Version>
+    <Authors>Jernej Rozac</Authors>
+    <Company />
+    <Product />
+    <Description>The purpose of this library is to simplify the implementation of various Tcp client/server communication scenarios. The library abstracts the C# native Tcp communication classes and brings an event-driven implementation of Tcp client/server communication, which minimizes code replication.</Description>
+    <RepositoryUrl>https://github.com/jrozac/Layer4Stack</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/jrozac/Layer4Stack</PackageProjectUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.2.0" />
+  </ItemGroup>
+
+</Project>

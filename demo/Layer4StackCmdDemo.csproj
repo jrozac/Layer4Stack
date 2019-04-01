@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Layer4Stack.csproj" />
+    <ProjectReference Include="..\src\Layer4Stack.csproj" />
   </ItemGroup>
 
 </Project>
