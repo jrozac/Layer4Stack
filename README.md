@@ -1,8 +1,7 @@
 # C# Stack 4 Tcp Client and Server
 
-Framework 4.6.1 or Core 2.1 is required to use the solution present in this repository. Used nugets:
-- Microsoft.Extensions.Logging
-- NETStandard.Library
+NET Standard 2.0 or higher is required to use the solution present in this repository. External packages used:
+- Microsoft.Extensions.Logging.Abstractions
 
 Implementation based on framework 4.5 and log4net dependency id deprecated. A legacy release and tag v1.0.9 were bade for backward compatibility.
 
