@@ -185,16 +185,16 @@ namespace Layer4Stack.Services
             // raise status event
             if(status)
             {
-                TaskUtil.RunAction(() => ServerStartedAction?.Invoke(_config), _logger);
+                _ = TaskUtil.RunAction(() => ServerStartedAction?.Invoke(_config), _logger);
             } else
             {
-                TaskUtil.RunAction(() => ServerStartFailureAction?.Invoke(_config), _logger);
+                _ = TaskUtil.RunAction(() => ServerStartFailureAction?.Invoke(_config), _logger);
             }
 
             // wait for clients (keep it run in background)
             if(status)
             {
-                WaitForClientsLoop();
+                _ = WaitForClientsLoop();
             }
 
             // finished
@@ -233,7 +233,7 @@ namespace Layer4Stack.Services
                     };
 
                     // Handle client in background
-                    HandleClient(clientModel);
+                    _ = HandleClient(clientModel);
 
                 }
             }
@@ -280,7 +280,7 @@ namespace Layer4Stack.Services
             }
 
             // server stopped
-            TaskUtil.RunAction(() => ServerStoppedAction?.Invoke(_config), _logger);
+            _ = TaskUtil.RunAction(() => ServerStoppedAction?.Invoke(_config), _logger);
 
         }
 
@@ -293,7 +293,7 @@ namespace Layer4Stack.Services
         {
 
             // trigger connected event
-            TaskUtil.RunAction(() => ClientConnectedAction?.Invoke(client.Info), _logger);
+            _ = TaskUtil.RunAction(() => ClientConnectedAction?.Invoke(client.Info), _logger);
 
             // add client to repository
             PutClientToRepository(client);
@@ -305,7 +305,7 @@ namespace Layer4Stack.Services
             RemoveClientFromRepository(client.Info.Id);
 
             // raise clinet disconnected
-            TaskUtil.RunAction(() => ClientDisconnectedAction?.Invoke(client.Info), _logger);
+            _ = TaskUtil.RunAction(() => ClientDisconnectedAction?.Invoke(client.Info), _logger);
 
         }
 

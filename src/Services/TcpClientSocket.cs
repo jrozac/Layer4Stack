@@ -83,7 +83,7 @@ namespace Layer4Stack.Services
                 _logger.LogError("Connection failed with error: {message}.", e.Message);
 
                 // client connected failed 
-                TaskUtil.RunAction(() => ClientConnectionFailureAction?.Invoke(client.Info), _logger);
+                _ = TaskUtil.RunAction(() => ClientConnectionFailureAction?.Invoke(client.Info), _logger);
 
                 // return false
                 return false;
@@ -93,7 +93,7 @@ namespace Layer4Stack.Services
             Interlocked.Exchange(ref _client, client);
 
             // handle client
-            HandleClient();
+            _ = HandleClient();
 
             // return success
             return true;
@@ -149,7 +149,7 @@ namespace Layer4Stack.Services
         {
 
             // client connected
-            TaskUtil.RunAction(() => ClientConnectedAction?.Invoke(_client.Info), _logger);
+            _ = TaskUtil.RunAction(() => ClientConnectedAction?.Invoke(_client.Info), _logger);
 
             // continuously reads data
             await ReadData(_client);
@@ -161,7 +161,7 @@ namespace Layer4Stack.Services
             _client = null;
 
             // trigger diconnected event
-            TaskUtil.RunAction(() => ClientDisconnectedAction?.Invoke(client?.Info), _logger);
+            _ = TaskUtil.RunAction(() => ClientDisconnectedAction?.Invoke(client?.Info), _logger);
 
         }
 

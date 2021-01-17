@@ -86,7 +86,7 @@ namespace Layer4Stack.Services
             // raise sent 
             if(status)
             {
-                TaskUtil.RunAction(() => MsgSentAction?.Invoke(message), _logger);
+                _ = TaskUtil.RunAction(() => MsgSentAction?.Invoke(message), _logger);
             }
             return status;
 
@@ -165,7 +165,7 @@ namespace Layer4Stack.Services
                 // message received
                 if(receivedMessages != null && receivedMessages.Any())
                 {
-                    receivedMessages.ToList().ForEach((msg) => DataReceived(msg, client.Info.Id));
+                    receivedMessages.ToList().ForEach((msg) => _ = DataReceived(msg, client.Info.Id));
                 }
             }
 
@@ -186,7 +186,7 @@ namespace Layer4Stack.Services
             DataContainer model = new DataContainer { ClientId = clientId, Payload = msg, Time = DateTime.Now };
 
             // trigger event
-            TaskUtil.RunAction(() => MsgReceivedAction?.Invoke(model), _logger);
+            _ = TaskUtil.RunAction(() => MsgReceivedAction?.Invoke(model), _logger);
             await Task.FromResult(true);
 
         }

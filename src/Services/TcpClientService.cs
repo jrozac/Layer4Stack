@@ -215,7 +215,7 @@ namespace Layer4Stack.Services
                     var rsp = _eventHandler.HandleReceivedData(msg, id != null);
                     if(rsp != null)
                     {
-                        SendAsync(rsp);
+                        _ = SendAsync(rsp);
                     }
                 }
             });
